@@ -314,7 +314,6 @@
             background: #16a34a;
         }
 
-        /* Admin-Bereich */
         .admin-area {
             margin-top: 28px;
             border-top: 2px dashed #dce1e9;
@@ -384,6 +383,14 @@
 
         .admin-panel button:hover {
             background: #4f46e5;
+        }
+
+        .admin-panel .reset-btn {
+            background: #ef4444;
+        }
+
+        .admin-panel .reset-btn:hover {
+            background: #dc2626;
         }
 
         .footer {
@@ -541,6 +548,7 @@
                     <option value="result">Ergebnis</option>
                 </select>
                 <button id="applyPhaseBtn">Anwenden</button>
+                <button class="reset-btn" id="resetVotesBtn">🔄 Abstimmung zurücksetzen (lokal)</button>
             </div>
         </div>
 
@@ -576,7 +584,7 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // ==================== SESSION ID ====================
+        // ==================== SESSION ID (für eigene Thesen) ====================
         function getSessionId() {
             let sid = localStorage.getItem('voting_session_id');
             if (!sid) {
@@ -587,10 +595,26 @@
         }
         const sessionId = getSessionId();
 
+        // ==================== PERSISTENTE seenIds (lokal) ====================
+        const SEEN_IDS_KEY = 'voting_seen_ids';
+
+        function loadSeenIds() {
+            try {
+                const raw = localStorage.getItem(SEEN_IDS_KEY);
+                return raw ? JSON.parse(raw) : [];
+            } catch {
+                return [];
+            }
+        }
+
+        function saveSeenIds() {
+            localStorage.setItem(SEEN_IDS_KEY, JSON.stringify(seenIds));
+        }
+
         // ==================== GLOBALE DATEN ====================
         let allTheses = [];
         let currentPhase = 'collect';
-        let seenIds = [];
+        let seenIds = loadSeenIds(); // persistent
         let voteQueue = [];
         let currentIndex = 0;
 
@@ -617,6 +641,7 @@
         const phaseSelect = document.getElementById('phaseSelect');
         const applyPhaseBtn = document.getElementById('applyPhaseBtn');
         const exportResultBtn = document.getElementById('exportResultBtn');
+        const resetVotesBtn = document.getElementById('resetVotesBtn');
 
         // Modal-Elemente
         const adminModal = document.getElementById('adminModal');
@@ -729,7 +754,9 @@
 
         // ==================== VOTING ====================
         function buildVoteQueue() {
+            // Nur Thesen, die noch nicht in seenIds sind
             const unseen = allTheses.filter(t => !seenIds.includes(t.id));
+            // Zufällige Reihenfolge
             for (let i = unseen.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [unseen[i], unseen[j]] = [unseen[j], unseen[i]];
@@ -741,11 +768,9 @@
         function renderVoteCard() {
             if (currentPhase !== 'vote') return;
 
-            // Prüfen, ob noch Thesen vorhanden sind
             const hasMore = voteQueue.length > 0 && currentIndex < voteQueue.length;
 
             if (!hasMore) {
-                // Ende – Buttons ausblenden, Abschlussmeldung anzeigen
                 cardText.textContent = '🎉 Alle Thesen wurden bewertet!';
                 card.style.transform = '';
                 card.style.opacity = '1';
@@ -755,7 +780,6 @@
                 return;
             }
 
-            // Normale Karte anzeigen
             const thesis = voteQueue[currentIndex];
             cardText.textContent = thesis.text;
             card.style.transform = '';
@@ -774,7 +798,11 @@
                 const ref = database.ref('theses/' + thesis.id + '/votes');
                 ref.transaction((currentVotes) => (currentVotes || 0) + 1);
             }
-            if (!seenIds.includes(thesis.id)) seenIds.push(thesis.id);
+            // Als gesehen markieren und speichern
+            if (!seenIds.includes(thesis.id)) {
+                seenIds.push(thesis.id);
+                saveSeenIds();
+            }
             currentIndex++;
             renderVoteCard();
         }
@@ -866,12 +894,31 @@
             }
             if (!['collect', 'vote', 'result'].includes(phase)) return;
             database.ref('phase').set(phase);
+            // seenIds NICHT zurücksetzen – bleibt erhalten
+            // aber bei Wechsel zu Vote: Queue neu aufbauen
             if (phase === 'vote') {
-                seenIds = [];
+                // seenIds bleiben wie sie sind
                 voteQueue = [];
                 currentIndex = 0;
+                buildVoteQueue();
             }
             adminPanel.classList.remove('open');
+        }
+
+        function resetLocalVotes() {
+            if (!adminAuthenticated) {
+                alert('Nur Admin kann lokale Abstimmung zurücksetzen.');
+                return;
+            }
+            if (confirm('Möchtest du wirklich deine lokale Abstimmung zurücksetzen? Du kannst dann alle Thesen erneut bewerten.')) {
+                seenIds = [];
+                saveSeenIds();
+                voteQueue = [];
+                currentIndex = 0;
+                buildVoteQueue();
+                renderVoteCard();
+                alert('Lokale Abstimmung zurückgesetzt.');
+            }
         }
 
         function updateAdminSelect() {
@@ -891,6 +938,7 @@
         });
 
         applyPhaseBtn.addEventListener('click', () => setPhase(phaseSelect.value));
+        resetVotesBtn.addEventListener('click', resetLocalVotes);
 
         modalConfirm.addEventListener('click', handleAdminAuth);
         modalCancel.addEventListener('click', closeAdminModal);
@@ -925,6 +973,7 @@
         });
 
         console.log('🔥 Thesen-Voting mit Firebase gestartet. Session-ID:', sessionId);
+        console.log('Bereits gesehene Thesen:', seenIds.length);
     </script>
 </body>
 </html>
