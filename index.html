@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Thesen‑Voting (Firebase)</title>
-    <!-- Firebase SDKs (Compat‑Version für einfache Einbindung) -->
+    <!-- Firebase SDKs (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
@@ -127,6 +127,12 @@
 
         .theses-list li .delete-btn:hover {
             color: #ef4444;
+        }
+
+        .theses-list li .delete-btn.disabled {
+            color: #d1d5db;
+            cursor: not-allowed;
+            pointer-events: none;
         }
 
         .empty-msg {
@@ -286,6 +292,25 @@
             font-size: 14px;
         }
 
+        .export-btn {
+            display: block;
+            margin: 16px auto 0;
+            padding: 10px 24px;
+            background: #22c55e;
+            color: white;
+            border: none;
+            border-radius: 40px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .export-btn:hover {
+            background: #16a34a;
+        }
+
+        /* Admin-Bereich */
         .admin-area {
             margin-top: 28px;
             border-top: 2px dashed #dce1e9;
@@ -301,7 +326,6 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            margin-bottom: 12px;
             padding: 6px 12px;
             border-radius: 40px;
             transition: background 0.2s;
@@ -319,6 +343,7 @@
             flex-wrap: wrap;
             align-items: center;
             gap: 12px;
+            margin-top: 8px;
         }
 
         .admin-panel.open {
@@ -357,26 +382,93 @@
             background: #4f46e5;
         }
 
-        .admin-panel .password-input {
-            width: 100%;
-            display: flex;
-            gap: 8px;
-            margin-top: 6px;
-        }
-
-        .admin-panel .password-input input {
-            flex: 1;
-            padding: 8px 12px;
-            border: 2px solid #dce1e9;
-            border-radius: 40px;
-            font-size: 14px;
-        }
-
         .footer {
             margin-top: 16px;
             font-size: 12px;
             color: #94a3b8;
             text-align: center;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-box {
+            background: white;
+            padding: 32px 28px;
+            border-radius: 24px;
+            max-width: 340px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .modal-box h2 {
+            font-size: 20px;
+            margin-bottom: 12px;
+            color: #1e293b;
+        }
+
+        .modal-box input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #dce1e9;
+            border-radius: 40px;
+            font-size: 16px;
+            margin: 12px 0 16px;
+            outline: none;
+        }
+
+        .modal-box input:focus {
+            border-color: #6366f1;
+        }
+
+        .modal-box .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .modal-box .modal-actions button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 40px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .modal-box .modal-actions .btn-confirm {
+            background: #6366f1;
+            color: white;
+        }
+
+        .modal-box .modal-actions .btn-confirm:hover {
+            background: #4f46e5;
+        }
+
+        .modal-box .modal-actions .btn-cancel {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .modal-box .modal-actions .btn-cancel:hover {
+            background: #cbd5e1;
         }
 
         @media (max-width: 480px) {
@@ -431,6 +523,7 @@
         <div id="phaseResult" style="display:none;">
             <p style="color:#64748b; margin-bottom:12px;">🏆 Die Top‑12 Thesen nach Stimmen</p>
             <ol class="ranking" id="rankingList"></ol>
+            <button class="export-btn" id="exportResultBtn">📥 Top‑12 als JSON herunterladen</button>
         </div>
 
         <!-- Admin -->
@@ -444,19 +537,28 @@
                     <option value="result">Ergebnis</option>
                 </select>
                 <button id="applyPhaseBtn">Anwenden</button>
-                <div class="password-input">
-                    <input type="password" id="adminPassword" placeholder="Admin-Passwort" />
-                    <button id="adminAuthBtn">🔑 Authentifizieren</button>
-                </div>
-                <div style="font-size:12px; color:#64748b; margin-top:4px;">Standard: admin123</div>
+                <!-- Hinweis: Kein Passwortfeld mehr hier, weil Popup -->
             </div>
         </div>
 
         <div class="footer">Daten werden zentral in Firebase gespeichert.</div>
     </div>
 
+    <!-- Modal für Admin-Passwort -->
+    <div class="modal-overlay" id="adminModal">
+        <div class="modal-box">
+            <h2>🔐 Admin-Zugang</h2>
+            <p style="color:#64748b; font-size:14px;">Bitte gib das Passwort ein:</p>
+            <input type="password" id="modalPassword" placeholder="Passwort" />
+            <div class="modal-actions">
+                <button class="btn-cancel" id="modalCancel">Abbrechen</button>
+                <button class="btn-confirm" id="modalConfirm">Bestätigen</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // ==================== DEINE FIREBASE KONFIGURATION ====================
+        // ==================== FIREBASE KONFIGURATION ====================
         const firebaseConfig = {
             apiKey: "AIzaSyAUErqPmzSjhrLP40hVMi8t5WEtePx_Gwg",
             authDomain: "thesen-20af7.firebaseapp.com",
@@ -471,6 +573,17 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
+        // ==================== SESSION ID ====================
+        function getSessionId() {
+            let sid = localStorage.getItem('voting_session_id');
+            if (!sid) {
+                sid = crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2);
+                localStorage.setItem('voting_session_id', sid);
+            }
+            return sid;
+        }
+        const sessionId = getSessionId();
+
         // ==================== GLOBALE DATEN ====================
         let allTheses = [];
         let currentPhase = 'collect';
@@ -478,7 +591,8 @@
         let voteQueue = [];
         let currentIndex = 0;
 
-        const ADMIN_PASSWORD = 'admin123';
+        const ADMIN_PASSWORD = 'admin123'; // kann hier geändert werden
+        let adminAuthenticated = false;
 
         // DOM-Referenzen
         const phaseBadge = document.getElementById('phaseBadge');
@@ -498,8 +612,13 @@
         const adminPanel = document.getElementById('adminPanel');
         const phaseSelect = document.getElementById('phaseSelect');
         const applyPhaseBtn = document.getElementById('applyPhaseBtn');
-        const adminPasswordInput = document.getElementById('adminPassword');
-        const adminAuthBtn = document.getElementById('adminAuthBtn');
+        const exportResultBtn = document.getElementById('exportResultBtn');
+
+        // Modal-Elemente
+        const adminModal = document.getElementById('adminModal');
+        const modalPassword = document.getElementById('modalPassword');
+        const modalConfirm = document.getElementById('modalConfirm');
+        const modalCancel = document.getElementById('modalCancel');
 
         // ==================== FIREBASE LISTENER ====================
         database.ref('phase').on('value', (snapshot) => {
@@ -519,7 +638,8 @@
                 allTheses = Object.keys(data).map(key => ({
                     id: key,
                     text: data[key].text || '',
-                    votes: data[key].votes || 0
+                    votes: data[key].votes || 0,
+                    creatorId: data[key].creatorId || null
                 }));
             } else {
                 allTheses = [];
@@ -552,7 +672,9 @@
                 phaseVote.style.display = 'block';
                 if (voteQueue.length === 0) buildVoteQueue();
                 renderVoteCard();
-            } else if (currentPhase === 'result') phaseResult.style.display = 'block';
+            } else if (currentPhase === 'result') {
+                phaseResult.style.display = 'block';
+            }
         }
 
         function renderCollectList() {
@@ -561,16 +683,26 @@
                 list.innerHTML = '<li class="empty-msg">Noch keine Thesen eingereicht.</li>';
                 return;
             }
-            list.innerHTML = allTheses.map(t => `
-                <li>
-                    <span>${escapeHtml(t.text)}</span>
-                    <button class="delete-btn" data-id="${t.id}">✕</button>
-                </li>
-            `).join('');
-            list.querySelectorAll('.delete-btn').forEach(btn => {
+            const isAdmin = adminAuthenticated;
+            list.innerHTML = allTheses.map(t => {
+                const canDelete = isAdmin || (t.creatorId === sessionId);
+                return `
+                    <li>
+                        <span>${escapeHtml(t.text)}</span>
+                        <button class="delete-btn ${canDelete ? '' : 'disabled'}" data-id="${t.id}" ${canDelete ? '' : 'disabled'}>
+                            ✕
+                        </button>
+                    </li>
+                `;
+            }).join('');
+            list.querySelectorAll('.delete-btn:not(.disabled)').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const id = this.dataset.id;
-                    if (currentPhase === 'collect') database.ref('theses/' + id).remove();
+                    if (currentPhase === 'collect') {
+                        if (adminAuthenticated || allTheses.find(t => t.id === id)?.creatorId === sessionId) {
+                            database.ref('theses/' + id).remove();
+                        }
+                    }
                 });
             });
         }
@@ -583,7 +715,11 @@
                 alert('Maximal 200 Thesen erlaubt.');
                 return;
             }
-            database.ref('theses').push({ text, votes: 0 });
+            database.ref('theses').push({
+                text: text,
+                votes: 0,
+                creatorId: sessionId
+            });
             thesisInput.value = '';
         }
 
@@ -739,7 +875,7 @@
             currentX = 0;
         }
 
-        // ==================== RANKING ====================
+        // ==================== RANKING & EXPORT ====================
         function renderRanking() {
             if (currentPhase !== 'result') return;
             const top12 = allTheses.slice(0, 12);
@@ -763,19 +899,44 @@
             }).join('');
         }
 
-        // ==================== ADMIN ====================
-        let adminAuthenticated = false;
+        function exportTop12() {
+            const top12 = allTheses.slice(0, 12).map(t => ({ text: t.text, votes: t.votes }));
+            const json = JSON.stringify(top12, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `top12-thesen-${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
 
-        function authenticateAdmin() {
-            const pwd = adminPasswordInput.value.trim();
+        // ==================== ADMIN ====================
+        function openAdminModal() {
+            adminModal.classList.add('active');
+            modalPassword.value = '';
+            modalPassword.focus();
+        }
+
+        function closeAdminModal() {
+            adminModal.classList.remove('active');
+        }
+
+        function handleAdminAuth() {
+            const pwd = modalPassword.value.trim();
             if (pwd === ADMIN_PASSWORD) {
                 adminAuthenticated = true;
-                alert('✅ Admin-Authentifizierung erfolgreich! Du kannst jetzt die Phase ändern.');
-                adminPasswordInput.value = '';
+                closeAdminModal();
                 adminPanel.classList.add('open');
+                // Nach Authentifizierung Admin-Panel sichtbar machen und Phase-Select aktualisieren
+                updateAdminSelect();
+                // Auch die Lösch-Buttons neu rendern (Admin kann jetzt alle löschen)
+                renderCollectList();
+                alert('✅ Admin erfolgreich authentifiziert.');
             } else {
                 alert('❌ Falsches Passwort.');
-                adminPasswordInput.value = '';
+                modalPassword.value = '';
+                modalPassword.focus();
             }
         }
 
@@ -803,14 +964,32 @@
         thesisInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addThesis(); });
 
         adminToggle.addEventListener('click', () => {
-            adminPanel.classList.toggle('open');
-            if (adminPanel.classList.contains('open')) adminPasswordInput.focus();
+            if (adminAuthenticated) {
+                // Wenn bereits authentifiziert, einfach Panel togglen
+                adminPanel.classList.toggle('open');
+            } else {
+                openAdminModal();
+            }
         });
 
         applyPhaseBtn.addEventListener('click', () => setPhase(phaseSelect.value));
-        adminAuthBtn.addEventListener('click', authenticateAdmin);
-        adminPasswordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') authenticateAdmin(); });
 
+        // Modal-Events
+        modalConfirm.addEventListener('click', handleAdminAuth);
+        modalCancel.addEventListener('click', closeAdminModal);
+        modalPassword.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') handleAdminAuth();
+            if (e.key === 'Escape') closeAdminModal();
+        });
+        // Klick außerhalb des Modals schließen
+        adminModal.addEventListener('click', (e) => {
+            if (e.target === adminModal) closeAdminModal();
+        });
+
+        // Export-Button
+        exportResultBtn.addEventListener('click', exportTop12);
+
+        // Tastatur-Shortcuts für Voten
         document.addEventListener('keydown', (e) => {
             if (currentPhase !== 'vote') return;
             if (e.key === 'ArrowLeft') dislikeBtn.click();
@@ -829,7 +1008,7 @@
             if (!snap.val()) database.ref('phase').set('collect');
         });
 
-        console.log('🔥 Thesen-Voting mit Firebase gestartet.');
+        console.log('🔥 Thesen-Voting mit Firebase gestartet. Session-ID:', sessionId);
     </script>
 </body>
 </html>
