@@ -9,24 +9,27 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <style>
     /* ============================================================
-       TOKENS – helles Retro‑Design mit dunkler Schrift
+       TOKENS – Dark Mode, keine Emojis
        ============================================================ */
     :root {
-      --surface: rgba(255, 255, 255, 0.85);
-      --ink: #111111;
-      --steel: #333333;
-      --line: #000000;
-      --hard-shadow: 4px 4px 0 #000;
-      --hard-shadow-sm: 2px 2px 0 #000;
+      --bg: #0a0a0a;
+      --surface: rgba(20, 20, 20, 0.88);
+      --surface-light: rgba(40, 40, 40, 0.75);
+      --ink: #f0f0f0;
+      --steel: #b0b0b0;
+      --line: #ffffff;
+      --hard-shadow: 4px 4px 0 rgba(255,255,255,0.15);
+      --hard-shadow-sm: 2px 2px 0 rgba(255,255,255,0.12);
       --red: #e2001a;
       --gold: #ffcc00;
-      --blue: #0047ab;
-      --green: #00913f;
+      --blue: #2a6bb0;
+      --green: #2e9e5a;
+      --border: 2px solid rgba(255,255,255,0.25);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-      background: #f0f0f0;
+      background: var(--bg);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
@@ -46,24 +49,25 @@
       height: 100vh;
       z-index: 0;
       pointer-events: none;
+      opacity: 0.5; /* dezenter im Dark Mode */
     }
 
     #app {
       max-width: 480px;
       width: 100%;
       background: var(--surface);
-      border-radius: 32px;
-      border: 4px solid #000;
+      border-radius: 28px;
+      border: var(--border);
       box-shadow: var(--hard-shadow);
-      padding: 24px 20px 32px;
+      padding: 24px 20px 28px;
       position: relative;
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(6px);
       z-index: 1;
       min-height: 80vh;
     }
 
     /* ============================
-       KOPF (wie Bundesliga, aber angepasst)
+       KOPF – ohne Emojis
        ============================ */
     .app-header {
       display: flex;
@@ -73,28 +77,29 @@
       gap: 12px;
       margin-bottom: 16px;
       padding-bottom: 12px;
-      border-bottom: 4px solid #000;
+      border-bottom: var(--border);
     }
     .app-header h1 {
       font-family: 'Anton', 'Arial Narrow', Impact, sans-serif;
       font-style: italic;
       font-size: 1.8rem;
-      letter-spacing: 0.01em;
+      letter-spacing: 0.02em;
       text-transform: uppercase;
       color: var(--ink);
-      text-shadow: 2px 2px 0 var(--red), 4px 4px 0 #fff;
+      text-shadow: 2px 2px 0 var(--red), 4px 4px 0 rgba(255,255,255,0.1);
       margin: 0;
     }
     .phase-badge {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 700;
       background: var(--red);
       color: #fff;
       padding: 4px 14px;
       border-radius: 40px;
-      border: 2px solid #000;
+      border: var(--border);
       box-shadow: var(--hard-shadow-sm);
-      letter-spacing: 0.3px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
     }
 
     /* ============================
@@ -108,23 +113,27 @@
     .input-group input {
       flex: 1;
       padding: 12px 16px;
-      border: 3px solid #000;
+      border: var(--border);
       border-radius: 40px;
       font-size: 16px;
       outline: none;
-      background: #fff;
+      background: rgba(255,255,255,0.08);
       color: var(--ink);
       box-shadow: var(--hard-shadow-sm);
     }
     .input-group input:focus {
       border-color: var(--blue);
-      box-shadow: 3px 3px 0 #000;
+      box-shadow: 3px 3px 0 rgba(255,255,255,0.08);
+    }
+    .input-group input::placeholder {
+      color: var(--steel);
+      opacity: 0.7;
     }
     .input-group button {
       padding: 12px 24px;
       background: var(--blue);
       color: #fff;
-      border: 3px solid #000;
+      border: var(--border);
       border-radius: 40px;
       font-size: 16px;
       font-weight: 700;
@@ -135,11 +144,11 @@
     }
     .input-group button:hover {
       transform: translate(-1px, -1px);
-      box-shadow: 3px 3px 0 #000;
+      box-shadow: 3px 3px 0 rgba(255,255,255,0.1);
     }
     .input-group button:active {
       transform: translate(2px, 2px);
-      box-shadow: 0 0 0 #000;
+      box-shadow: none;
     }
 
     .theses-list {
@@ -147,14 +156,14 @@
       margin-top: 8px;
     }
     .theses-list li {
-      background: rgba(255, 255, 255, 0.6);
+      background: var(--surface-light);
       padding: 14px 16px;
       border-radius: 16px;
       margin-bottom: 8px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border: 2px solid #000;
+      border: var(--border);
       word-break: break-word;
       color: var(--ink);
       box-shadow: var(--hard-shadow-sm);
@@ -167,10 +176,11 @@
       cursor: pointer;
       padding: 0 6px;
       transition: color 0.2s;
+      font-weight: 700;
     }
     .theses-list li .delete-btn:hover { color: var(--red); }
     .theses-list li .delete-btn.disabled {
-      color: #ccc;
+      color: #555;
       cursor: not-allowed;
       pointer-events: none;
     }
@@ -194,7 +204,7 @@
       position: absolute;
       width: 100%;
       height: 100%;
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(30, 30, 30, 0.92);
       border-radius: 28px;
       box-shadow: var(--hard-shadow);
       display: flex;
@@ -205,7 +215,7 @@
       font-weight: 600;
       color: var(--ink);
       text-align: center;
-      border: 3px solid #000;
+      border: var(--border);
       transition: transform 0.3s ease, opacity 0.3s ease;
       cursor: default;
       user-select: none;
@@ -232,21 +242,23 @@
       width: 72px;
       height: 72px;
       border-radius: 50%;
-      border: 3px solid #000;
-      font-size: 32px;
+      border: var(--border);
+      font-size: 28px;
+      font-weight: 700;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       transition: transform 0.15s, box-shadow 0.2s;
       box-shadow: var(--hard-shadow-sm);
-      background: #fff;
+      background: rgba(20,20,20,0.8);
+      color: var(--ink);
     }
     .card-actions button:active { transform: scale(0.90); }
     .btn-dislike { color: var(--red); }
-    .btn-dislike:hover { background: #ffe6e6; }
+    .btn-dislike:hover { background: rgba(226,0,26,0.15); }
     .btn-like { color: var(--green); }
-    .btn-like:hover { background: #e6ffec; }
+    .btn-like:hover { background: rgba(46,158,90,0.15); }
 
     .vote-counter {
       text-align: center;
@@ -268,10 +280,10 @@
       align-items: center;
       gap: 14px;
       padding: 14px 16px;
-      background: rgba(255, 255, 255, 0.6);
+      background: var(--surface-light);
       border-radius: 16px;
       margin-bottom: 8px;
-      border: 2px solid #000;
+      border: var(--border);
       color: var(--ink);
       box-shadow: var(--hard-shadow-sm);
     }
@@ -289,11 +301,11 @@
     .ranking .votes {
       font-weight: 600;
       color: var(--steel);
-      background: #e2e8f0;
+      background: rgba(255,255,255,0.08);
       padding: 2px 14px;
       border-radius: 40px;
       font-size: 14px;
-      border: 2px solid #000;
+      border: var(--border);
     }
 
     .export-btn {
@@ -302,7 +314,7 @@
       padding: 10px 24px;
       background: var(--green);
       color: #fff;
-      border: 3px solid #000;
+      border: var(--border);
       border-radius: 40px;
       font-size: 16px;
       font-weight: 700;
@@ -310,19 +322,19 @@
       box-shadow: var(--hard-shadow-sm);
       transition: transform 0.08s, box-shadow 0.08s;
     }
-    .export-btn:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+    .export-btn:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 rgba(255,255,255,0.1); }
 
     /* ============================
        ADMIN
        ============================ */
     .admin-area {
       margin-top: 28px;
-      border-top: 4px dashed #000;
+      border-top: var(--border);
       padding-top: 20px;
     }
     .admin-toggle {
       background: none;
-      border: 2px solid #000;
+      border: var(--border);
       color: var(--steel);
       font-size: 14px;
       cursor: pointer;
@@ -332,19 +344,19 @@
       padding: 6px 12px;
       border-radius: 40px;
       transition: background 0.2s;
-      background: rgba(255,255,255,0.4);
+      background: rgba(255,255,255,0.04);
     }
-    .admin-toggle:hover { background: rgba(255,255,255,0.8); }
+    .admin-toggle:hover { background: rgba(255,255,255,0.08); }
     .admin-panel {
       display: none;
-      background: rgba(255, 255, 255, 0.6);
+      background: var(--surface-light);
       padding: 16px;
       border-radius: 20px;
       flex-wrap: wrap;
       align-items: center;
       gap: 12px;
       margin-top: 8px;
-      border: 3px solid #000;
+      border: var(--border);
     }
     .admin-panel.open { display: flex; }
     .admin-panel label {
@@ -355,17 +367,19 @@
     .admin-panel select {
       padding: 8px 16px;
       border-radius: 40px;
-      border: 3px solid #000;
-      background: #fff;
+      border: var(--border);
+      background: rgba(255,255,255,0.06);
+      color: var(--ink);
       font-size: 14px;
       flex: 1;
       min-width: 120px;
     }
+    .admin-panel select option { background: #1a1a1a; }
     .admin-panel button {
       padding: 8px 18px;
       background: var(--blue);
       color: #fff;
-      border: 3px solid #000;
+      border: var(--border);
       border-radius: 40px;
       font-size: 14px;
       font-weight: 700;
@@ -373,7 +387,7 @@
       box-shadow: var(--hard-shadow-sm);
       transition: 0.08s;
     }
-    .admin-panel button:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+    .admin-panel button:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 rgba(255,255,255,0.08); }
     .admin-panel .reset-btn { background: var(--red); }
 
     .footer {
@@ -393,21 +407,21 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.7);
       z-index: 1000;
       justify-content: center;
       align-items: center;
     }
     .modal-overlay.active { display: flex; }
     .modal-box {
-      background: #fff;
+      background: #1a1a1a;
       padding: 32px 28px;
       border-radius: 24px;
       max-width: 340px;
       width: 90%;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8);
       text-align: center;
-      border: 4px solid #000;
+      border: var(--border);
     }
     .modal-box h2 {
       font-size: 20px;
@@ -417,12 +431,13 @@
     .modal-box input {
       width: 100%;
       padding: 12px 16px;
-      border: 3px solid #000;
+      border: var(--border);
       border-radius: 40px;
       font-size: 16px;
       margin: 12px 0 16px;
       outline: none;
-      background: #fff;
+      background: rgba(255,255,255,0.06);
+      color: var(--ink);
     }
     .modal-box input:focus { border-color: var(--blue); }
     .modal-box .modal-actions {
@@ -432,7 +447,7 @@
     }
     .modal-box .modal-actions button {
       padding: 10px 24px;
-      border: 3px solid #000;
+      border: var(--border);
       border-radius: 40px;
       font-size: 16px;
       font-weight: 700;
@@ -445,18 +460,18 @@
       color: #fff;
     }
     .modal-box .modal-actions .btn-cancel {
-      background: #e2e8f0;
+      background: #333;
       color: var(--steel);
     }
-    .modal-box .modal-actions button:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+    .modal-box .modal-actions button:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 rgba(255,255,255,0.08); }
 
     /* ============================
        MOBILE
        ============================ */
     @media (max-width: 480px) {
-      #app { padding: 16px; border-radius: 24px; }
+      #app { padding: 16px; border-radius: 20px; }
       .card { font-size: 18px; padding: 24px 16px; }
-      .card-actions button { width: 60px; height: 60px; font-size: 26px; }
+      .card-actions button { width: 60px; height: 60px; font-size: 22px; }
       .app-header h1 { font-size: 1.4rem; }
     }
   </style>
@@ -468,7 +483,7 @@
   <div id="app">
     <!-- Kopf mit Phasen-Badge -->
     <div class="app-header">
-      <h1>📋 Thesen</h1>
+      <h1>Thesen</h1>
       <span class="phase-badge" id="phaseBadge">Laden…</span>
     </div>
 
@@ -497,9 +512,9 @@
 
     <!-- Phase: Ergebnis -->
     <div id="phaseResult" style="display:none;">
-      <p style="color:var(--steel); margin-bottom:12px;">🏆 Die Top‑12 Thesen nach Stimmen</p>
+      <p style="color:var(--steel); margin-bottom:12px;">Die Top‑12 Thesen nach Stimmen</p>
       <ol class="ranking" id="rankingList"></ol>
-      <button class="export-btn" id="exportResultBtn">📥 Top‑12 als JSON herunterladen</button>
+      <button class="export-btn" id="exportResultBtn">Top‑12 als JSON herunterladen</button>
     </div>
 
     <!-- Admin -->
@@ -513,7 +528,7 @@
           <option value="result">Ergebnis</option>
         </select>
         <button id="applyPhaseBtn">Anwenden</button>
-        <button class="reset-btn" id="resetVotesBtn">🔄 Abstimmung zurücksetzen (lokal)</button>
+        <button class="reset-btn" id="resetVotesBtn">Abstimmung zurücksetzen (lokal)</button>
       </div>
     </div>
 
@@ -523,7 +538,7 @@
   <!-- Modal für Admin-Passwort -->
   <div class="modal-overlay" id="adminModal">
     <div class="modal-box">
-      <h2>🔐 Admin-Zugang</h2>
+      <h2>Admin-Zugang</h2>
       <p style="color:var(--steel); font-size:14px;">Bitte gib das Passwort ein:</p>
       <input type="password" id="modalPassword" placeholder="Passwort" />
       <div class="modal-actions">
@@ -547,7 +562,7 @@
       resize();
 
       const BG_COUNT = 30;
-      const BG_PATH = 'grafiken/data/';   // ← dein Ordner
+      const BG_PATH = 'grafiken/data/';
       const loaded = [];
 
       let loadedCount = 0;
@@ -565,7 +580,7 @@
         };
       }
 
-      // Fallback: falls nie alle laden, trotzdem starten
+      // Fallback
       setTimeout(() => {
         if (loaded.length === 0) {
           console.warn('Keine Hintergrundbilder geladen – starte trotzdem.');
@@ -627,7 +642,7 @@
                 let x = baseX + rd.offset + copy * rd.totalWidth;
                 if (x + im.w > -50 && x < canvas.width + 50) {
                   ctx.save();
-                  ctx.globalAlpha = 0.8;
+                  ctx.globalAlpha = 0.35;
                   ctx.drawImage(im.img, x, rd.y, im.w, im.h);
                   ctx.restore();
                 }
@@ -739,7 +754,7 @@
     }
 
     function updateBadge() {
-      const map = { collect: '📝 Sammeln', vote: '👆 Voten', result: '🏆 Top 12' };
+      const map = { collect: 'Sammeln', vote: 'Voten', result: 'Top 12' };
       phaseBadge.textContent = map[currentPhase] || currentPhase;
     }
 
@@ -804,7 +819,7 @@
       if (currentPhase !== 'vote') return;
       const hasMore = voteQueue.length > 0 && currentIndex < voteQueue.length;
       if (!hasMore) {
-        cardText.textContent = '🎉 Alle Thesen wurden bewertet!';
+        cardText.textContent = 'Alle Thesen wurden bewertet!';
         card.className = 'card';
         remainingCount.textContent = '0';
         cardActions.classList.add('hidden');
@@ -876,8 +891,8 @@
         adminPanel.classList.add('open');
         updateAdminSelect();
         renderCollectList();
-        alert('✅ Admin erfolgreich authentifiziert.');
-      } else { alert('❌ Falsches Passwort.'); modalPassword.value = ''; modalPassword.focus(); }
+        alert('Admin erfolgreich authentifiziert.');
+      } else { alert('Falsches Passwort.'); modalPassword.value = ''; modalPassword.focus(); }
     }
 
     function setPhase(phase) {
@@ -920,7 +935,7 @@
     initVoteButtons();
     database.ref('phase').once('value', (snap) => { if (!snap.val()) database.ref('phase').set('collect'); });
 
-    console.log('🔥 Thesen-Voting mit Firebase gestartet. Session-ID:', sessionId);
+    console.log('Thesen-Voting mit Firebase gestartet. Session-ID:', sessionId);
     console.log('Bereits gesehene Thesen:', seenIds.length);
   </script>
 </body>
