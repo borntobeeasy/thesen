@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Thesen‑Voting</title>
+    <title>Thesen‑Voting (Firebase)</title>
+    <!-- Firebase SDKs (Compat‑Version für einfache Einbindung) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -58,7 +61,6 @@
             margin: 16px 0 20px;
         }
 
-        /* Phase: Sammeln */
         .input-group {
             display: flex;
             gap: 10px;
@@ -134,7 +136,6 @@
             font-style: italic;
         }
 
-        /* Phase: Voten */
         .card-area {
             position: relative;
             height: 380px;
@@ -235,7 +236,6 @@
             color: #1e293b;
         }
 
-        /* Phase: Ergebnisse */
         .ranking {
             list-style: none;
             margin-top: 8px;
@@ -357,26 +357,19 @@
             background: #4f46e5;
         }
 
-        .admin-panel .export-import {
+        .admin-panel .password-input {
+            width: 100%;
             display: flex;
             gap: 8px;
-            width: 100%;
-            margin-top: 4px;
-            flex-wrap: wrap;
+            margin-top: 6px;
         }
 
-        .admin-panel .export-import button {
-            background: #475569;
+        .admin-panel .password-input input {
             flex: 1;
-            min-width: 80px;
-        }
-
-        .admin-panel .export-import button:hover {
-            background: #334155;
-        }
-
-        .admin-panel input[type="file"] {
-            display: none;
+            padding: 8px 12px;
+            border: 2px solid #dce1e9;
+            border-radius: 40px;
+            font-size: 14px;
         }
 
         .footer {
@@ -386,7 +379,6 @@
             text-align: center;
         }
 
-        /* Responsive */
         @media (max-width: 480px) {
             #app {
                 padding: 16px;
@@ -408,11 +400,11 @@
     <div id="app">
         <h1>
             <span>📋 Thesen</span>
-            <span class="phase-badge" id="phaseBadge">Sammeln</span>
+            <span class="phase-badge" id="phaseBadge">Laden…</span>
         </h1>
         <hr />
 
-        <!-- PHASE 1: SAMMELN -->
+        <!-- Phase: Sammeln -->
         <div id="phaseCollect">
             <div class="input-group">
                 <input type="text" id="thesisInput" placeholder="Neue These eingeben …" maxlength="200" />
@@ -421,7 +413,7 @@
             <ul class="theses-list" id="thesesList"></ul>
         </div>
 
-        <!-- PHASE 2: VOTEN -->
+        <!-- Phase: Voten -->
         <div id="phaseVote" style="display:none;">
             <div class="card-area" id="cardArea">
                 <div class="card" id="card">
@@ -435,13 +427,13 @@
             <div class="vote-counter" id="voteCounter">Noch <span id="remainingCount">0</span> Thesen</div>
         </div>
 
-        <!-- PHASE 3: ERGEBNISSE -->
+        <!-- Phase: Ergebnis -->
         <div id="phaseResult" style="display:none;">
             <p style="color:#64748b; margin-bottom:12px;">🏆 Die Top‑12 Thesen nach Stimmen</p>
             <ol class="ranking" id="rankingList"></ol>
         </div>
 
-        <!-- ADMIN -->
+        <!-- Admin -->
         <div class="admin-area">
             <button class="admin-toggle" id="adminToggle">⚙️ Admin</button>
             <div class="admin-panel" id="adminPanel">
@@ -452,388 +444,234 @@
                     <option value="result">Ergebnis</option>
                 </select>
                 <button id="applyPhaseBtn">Anwenden</button>
-                <div class="export-import">
-                    <button id="exportBtn">📥 Export</button>
-                    <button id="importBtn">📤 Import</button>
-                    <input type="file" id="fileInput" accept=".json" />
+                <div class="password-input">
+                    <input type="password" id="adminPassword" placeholder="Admin-Passwort" />
+                    <button id="adminAuthBtn">🔑 Authentifizieren</button>
                 </div>
+                <div style="font-size:12px; color:#64748b; margin-top:4px;">Standard: admin123</div>
             </div>
         </div>
 
-        <div class="footer">Daten werden lokal im Browser gespeichert.</div>
+        <div class="footer">Daten werden zentral in Firebase gespeichert.</div>
     </div>
 
     <script>
-        (function() {
-            // ---------- Daten ----------
-            const STORAGE_KEY = 'thesis_voting_data';
+        // ==================== DEINE FIREBASE KONFIGURATION ====================
+        const firebaseConfig = {
+            apiKey: "AIzaSyAUErqPmzSjhrLP40hVMi8t5WEtePx_Gwg",
+            authDomain: "thesen-20af7.firebaseapp.com",
+            databaseURL: "https://thesen-20af7-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "thesen-20af7",
+            storageBucket: "thesen-20af7.firebasestorage.app",
+            messagingSenderId: "923852779228",
+            appId: "1:923852779228:web:8ff45ac0e5ae5c34054e19",
+            measurementId: "G-RNSE10FKR2"
+        };
 
-            let data = {
-                phase: 'collect',        // 'collect' | 'vote' | 'result'
-                theses: []               // { id, text, votes }
-            };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
 
-            let currentIndex = 0;        // Index der aktuell angezeigten These beim Voten
-            let isSwiping = false;
-            let startX = 0, startY = 0;
-            let cardOffsetX = 0;
-            let cardElement = null;
-            let cardText = null;
+        // ==================== GLOBALE DATEN ====================
+        let allTheses = [];
+        let currentPhase = 'collect';
+        let seenIds = [];
+        let voteQueue = [];
+        let currentIndex = 0;
 
-            // ---------- DOM-Referenzen ----------
-            const phaseBadge = document.getElementById('phaseBadge');
-            const phaseCollect = document.getElementById('phaseCollect');
-            const phaseVote = document.getElementById('phaseVote');
-            const phaseResult = document.getElementById('phaseResult');
-            const thesesList = document.getElementById('thesesList');
-            const thesisInput = document.getElementById('thesisInput');
-            const addBtn = document.getElementById('addThesisBtn');
+        const ADMIN_PASSWORD = 'admin123';
 
-            const cardArea = document.getElementById('cardArea');
-            const card = document.getElementById('card');
-            const cardText = document.getElementById('cardText');
-            const dislikeBtn = document.getElementById('dislikeBtn');
-            const likeBtn = document.getElementById('likeBtn');
-            const remainingCount = document.getElementById('remainingCount');
+        // DOM-Referenzen
+        const phaseBadge = document.getElementById('phaseBadge');
+        const phaseCollect = document.getElementById('phaseCollect');
+        const phaseVote = document.getElementById('phaseVote');
+        const phaseResult = document.getElementById('phaseResult');
+        const thesesList = document.getElementById('thesesList');
+        const thesisInput = document.getElementById('thesisInput');
+        const addBtn = document.getElementById('addThesisBtn');
+        const card = document.getElementById('card');
+        const cardText = document.getElementById('cardText');
+        const dislikeBtn = document.getElementById('dislikeBtn');
+        const likeBtn = document.getElementById('likeBtn');
+        const remainingCount = document.getElementById('remainingCount');
+        const rankingList = document.getElementById('rankingList');
+        const adminToggle = document.getElementById('adminToggle');
+        const adminPanel = document.getElementById('adminPanel');
+        const phaseSelect = document.getElementById('phaseSelect');
+        const applyPhaseBtn = document.getElementById('applyPhaseBtn');
+        const adminPasswordInput = document.getElementById('adminPassword');
+        const adminAuthBtn = document.getElementById('adminAuthBtn');
 
-            const rankingList = document.getElementById('rankingList');
-
-            const adminToggle = document.getElementById('adminToggle');
-            const adminPanel = document.getElementById('adminPanel');
-            const phaseSelect = document.getElementById('phaseSelect');
-            const applyPhaseBtn = document.getElementById('applyPhaseBtn');
-            const exportBtn = document.getElementById('exportBtn');
-            const importBtn = document.getElementById('importBtn');
-            const fileInput = document.getElementById('fileInput');
-
-            // ---------- Hilfsfunktionen ----------
-            function saveData() {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        // ==================== FIREBASE LISTENER ====================
+        database.ref('phase').on('value', (snapshot) => {
+            const val = snapshot.val();
+            if (val && ['collect', 'vote', 'result'].includes(val)) {
+                currentPhase = val;
+            } else {
+                currentPhase = 'collect';
+                database.ref('phase').set('collect');
             }
+            updateUI();
+        });
 
-            function loadData() {
-                const raw = localStorage.getItem(STORAGE_KEY);
-                if (raw) {
-                    try {
-                        const parsed = JSON.parse(raw);
-                        // Sicherstellen, dass alle Felder existieren
-                        data.phase = parsed.phase || 'collect';
-                        data.theses = parsed.theses || [];
-                        // Jede These muss votes haben
-                        data.theses = data.theses.map(t => ({
-                            id: t.id || Date.now() + Math.random(),
-                            text: t.text || '',
-                            votes: typeof t.votes === 'number' ? t.votes : 0
-                        }));
-                    } catch (e) {
-                        console.warn('Fehler beim Laden, verwende Standarddaten.');
-                        resetDefaultData();
-                    }
-                } else {
-                    resetDefaultData();
-                }
+        database.ref('theses').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                allTheses = Object.keys(data).map(key => ({
+                    id: key,
+                    text: data[key].text || '',
+                    votes: data[key].votes || 0
+                }));
+            } else {
+                allTheses = [];
             }
+            allTheses.sort((a, b) => b.votes - a.votes || a.text.localeCompare(b.text));
+            updateUI();
+        });
 
-            function resetDefaultData() {
-                data = {
-                    phase: 'collect',
-                    theses: []
-                };
-                saveData();
-            }
+        // ==================== UI AKTUALISIEREN ====================
+        function updateUI() {
+            updateBadge();
+            renderPhase();
+            renderCollectList();
+            renderVoteCard();
+            renderRanking();
+            updateAdminSelect();
+        }
 
-            // ---------- Rendering ----------
-            function renderAll() {
-                renderPhase();
-                renderCollectList();
+        function updateBadge() {
+            const map = { collect: '📝 Sammeln', vote: '👆 Voten', result: '🏆 Top 12' };
+            phaseBadge.textContent = map[currentPhase] || currentPhase;
+        }
+
+        function renderPhase() {
+            phaseCollect.style.display = 'none';
+            phaseVote.style.display = 'none';
+            phaseResult.style.display = 'none';
+            if (currentPhase === 'collect') phaseCollect.style.display = 'block';
+            else if (currentPhase === 'vote') {
+                phaseVote.style.display = 'block';
+                if (voteQueue.length === 0) buildVoteQueue();
                 renderVoteCard();
-                renderRanking();
-                updateBadge();
-                updateAdminSelect();
+            } else if (currentPhase === 'result') phaseResult.style.display = 'block';
+        }
+
+        function renderCollectList() {
+            const list = thesesList;
+            if (allTheses.length === 0) {
+                list.innerHTML = '<li class="empty-msg">Noch keine Thesen eingereicht.</li>';
+                return;
             }
-
-            function renderPhase() {
-                phaseCollect.style.display = 'none';
-                phaseVote.style.display = 'none';
-                phaseResult.style.display = 'none';
-
-                if (data.phase === 'collect') {
-                    phaseCollect.style.display = 'block';
-                } else if (data.phase === 'vote') {
-                    phaseVote.style.display = 'block';
-                    // Karten-Interaktion initialisieren
-                    initCardSwipe();
-                } else if (data.phase === 'result') {
-                    phaseResult.style.display = 'block';
-                }
-            }
-
-            function updateBadge() {
-                const map = {
-                    collect: '📝 Sammeln',
-                    vote: '👆 Voten',
-                    result: '🏆 Top 12'
-                };
-                phaseBadge.textContent = map[data.phase] || data.phase;
-            }
-
-            function updateAdminSelect() {
-                phaseSelect.value = data.phase;
-            }
-
-            // ---------- Sammeln ----------
-            function renderCollectList() {
-                const list = thesesList;
-                if (data.theses.length === 0) {
-                    list.innerHTML = '<li class="empty-msg">Noch keine Thesen eingereicht.</li>';
-                    return;
-                }
-                list.innerHTML = data.theses.map(t => `
-                    <li>
-                        <span>${escapeHtml(t.text)}</span>
-                        <button class="delete-btn" data-id="${t.id}">✕</button>
-                    </li>
-                `).join('');
-
-                // Lösch-Listener
-                list.querySelectorAll('.delete-btn').forEach(btn => {
-                    btn.addEventListener('click', function(e) {
-                        const id = parseInt(this.dataset.id);
-                        deleteThesis(id);
-                    });
+            list.innerHTML = allTheses.map(t => `
+                <li>
+                    <span>${escapeHtml(t.text)}</span>
+                    <button class="delete-btn" data-id="${t.id}">✕</button>
+                </li>
+            `).join('');
+            list.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = this.dataset.id;
+                    if (currentPhase === 'collect') database.ref('theses/' + id).remove();
                 });
+            });
+        }
+
+        function addThesis() {
+            if (currentPhase !== 'collect') return;
+            const text = thesisInput.value.trim();
+            if (!text) return;
+            if (allTheses.length >= 200) {
+                alert('Maximal 200 Thesen erlaubt.');
+                return;
             }
+            database.ref('theses').push({ text, votes: 0 });
+            thesisInput.value = '';
+        }
 
-            function deleteThesis(id) {
-                data.theses = data.theses.filter(t => t.id !== id);
-                saveData();
-                renderAll();
+        // ==================== VOTING ====================
+        function buildVoteQueue() {
+            const unseen = allTheses.filter(t => !seenIds.includes(t.id));
+            for (let i = unseen.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [unseen[i], unseen[j]] = [unseen[j], unseen[i]];
             }
+            voteQueue = unseen;
+            currentIndex = 0;
+        }
 
-            function addThesis() {
-                const text = thesisInput.value.trim();
-                if (!text) return;
-                if (data.theses.length >= 200) {
-                    alert('Maximal 200 Thesen erlaubt.');
-                    return;
-                }
-                data.theses.push({
-                    id: Date.now() + Math.random(),
-                    text: text,
-                    votes: 0
-                });
-                thesisInput.value = '';
-                saveData();
-                renderAll();
-            }
-
-            // ---------- Voten ----------
-            function getUnvotedTheses() {
-                // Alle Thesen, die noch nicht bewertet wurden (hier zählen wir die, die in der aktuellen Session noch nicht gesehen wurden?
-                // Da wir keine Benutzer haben, nehmen wir einfach alle Thesen, die noch nicht genügend Votes haben?
-                // Im Tinder-Stil: Jede These wird genau einmal gezeigt, und der Nutzer entscheidet.
-                // Also einfach alle Thesen durchgehen, aber wir müssen den Fortschritt speichern.
-                // Wir speichern den currentIndex im Datenobjekt? Oder wir behalten ihn nur im Speicher.
-                // Wenn Seite neu geladen, fängt er von vorne an – das ist ok.
-                // Aber wir wollen, dass bereits bewertete Thesen nicht wieder auftauchen.
-                // Dazu führen wir ein Set von IDs, die der Nutzer bereits gesehen hat.
-                // Da wir keine Benutzerverwaltung haben, verwenden wir localStorage für den Fortschritt pro Browser.
-                // Wir speichern den Index im data? Oder separat?
-                // Vereinfachung: Wir speichern den Fortschritt im data-Objekt.
-                if (!data.voteProgress) data.voteProgress = { seenIds: [] };
-                // Aber dann müssten wir das immer speichern.
-                // Besser: currentIndex ist der Index in der Liste der noch nicht bewerteten Thesen.
-                // Wir filtern die Thesen, die bereits bewertet wurden (d.h. die eine Stimme bekommen haben oder abgelehnt wurden?).
-                // Da wir nur "votes" zählen, aber nicht speichern, ob eine These abgelehnt wurde, wäre das schwierig.
-                // Wir können einfach alle Thesen in einer zufälligen Reihenfolge anzeigen und nachdem der Nutzer sie gesehen hat, als "gesehen" markieren.
-                // Wir speichern ein Array von IDs, die der Nutzer bereits gesehen hat.
-                // Das fügen wir dem data-Objekt hinzu.
-                if (!data.seenIds) data.seenIds = [];
-                const available = data.theses.filter(t => !data.seenIds.includes(t.id));
-                return available;
-            }
-
-            // Wir benötigen einen aktuellen Index für die Karte.
-            let voteQueue = [];
-
-            function buildVoteQueue() {
-                // Thesen, die noch nicht gesehen wurden
-                if (!data.seenIds) data.seenIds = [];
-                const unseen = data.theses.filter(t => !data.seenIds.includes(t.id));
-                // Mischen für zufällige Reihenfolge (Tinder-typisch)
-                for (let i = unseen.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [unseen[i], unseen[j]] = [unseen[j], unseen[i]];
-                }
-                voteQueue = unseen;
-                currentIndex = 0;
-            }
-
-            function renderVoteCard() {
-                if (data.phase !== 'vote') return;
-
-                // Queue aufbauen, falls leer
-                if (voteQueue.length === 0) {
-                    buildVoteQueue();
-                }
-
-                // Falls keine Thesen mehr übrig
-                if (voteQueue.length === 0 || currentIndex >= voteQueue.length) {
-                    cardText.textContent = '🎉 Alle Thesen wurden bewertet!';
-                    card.style.transform = '';
-                    card.style.opacity = '1';
-                    card.className = 'card';
-                    remainingCount.textContent = '0';
-                    // Buttons deaktivieren? Lassen wir sie aktiv, aber sie tun nichts.
-                    return;
-                }
-
-                const thesis = voteQueue[currentIndex];
-                cardText.textContent = thesis.text;
+        function renderVoteCard() {
+            if (currentPhase !== 'vote') return;
+            if (voteQueue.length === 0 || currentIndex >= voteQueue.length) {
+                cardText.textContent = '🎉 Alle Thesen wurden bewertet!';
                 card.style.transform = '';
                 card.style.opacity = '1';
                 card.className = 'card';
-                remainingCount.textContent = voteQueue.length - currentIndex;
-
-                // Swipe-Reset
-                cardOffsetX = 0;
+                remainingCount.textContent = '0';
+                return;
             }
+            const thesis = voteQueue[currentIndex];
+            cardText.textContent = thesis.text;
+            card.style.transform = '';
+            card.style.opacity = '1';
+            card.className = 'card';
+            remainingCount.textContent = voteQueue.length - currentIndex;
+        }
 
-            function voteThesis(decision) {
-                // decision: 'like' oder 'dislike'
-                if (voteQueue.length === 0 || currentIndex >= voteQueue.length) return;
-
-                const thesis = voteQueue[currentIndex];
-                if (decision === 'like') {
-                    // Stimme hinzufügen
-                    const found = data.theses.find(t => t.id === thesis.id);
-                    if (found) found.votes += 1;
-                }
-                // Als gesehen markieren
-                if (!data.seenIds) data.seenIds = [];
-                if (!data.seenIds.includes(thesis.id)) {
-                    data.seenIds.push(thesis.id);
-                }
-                saveData();
-
-                // Nächste These
-                currentIndex++;
-                renderVoteCard();
+        function voteThesis(decision) {
+            if (currentPhase !== 'vote') return;
+            if (voteQueue.length === 0 || currentIndex >= voteQueue.length) return;
+            const thesis = voteQueue[currentIndex];
+            if (decision === 'like') {
+                const ref = database.ref('theses/' + thesis.id + '/votes');
+                ref.transaction((currentVotes) => (currentVotes || 0) + 1);
             }
+            if (!seenIds.includes(thesis.id)) seenIds.push(thesis.id);
+            currentIndex++;
+            renderVoteCard();
+        }
 
-            // Swipe-Interaktion
-            function initCardSwipe() {
-                // Event-Listener nur einmal setzen
-                // Wir nutzen eine globale Variable, um doppelte Listener zu vermeiden
-                if (card._swipeInitialized) return;
-                card._swipeInitialized = true;
+        // ==================== SWIPE ====================
+        let isDragging = false, dragStartX = 0, dragStartY = 0, currentX = 0;
 
-                const cardEl = card;
+        function initCardSwipe() {
+            if (card._swipeInitialized) return;
+            card._swipeInitialized = true;
 
-                // Touch-Events
-                cardEl.addEventListener('touchstart', onTouchStart, { passive: false });
-                cardEl.addEventListener('touchmove', onTouchMove, { passive: false });
-                cardEl.addEventListener('touchend', onTouchEnd, { passive: false });
+            card.addEventListener('touchstart', onTouchStart, { passive: false });
+            card.addEventListener('touchmove', onTouchMove, { passive: false });
+            card.addEventListener('touchend', onTouchEnd, { passive: false });
 
-                // Maus-Events (für Desktop)
-                cardEl.addEventListener('mousedown', onMouseDown);
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
+            card.addEventListener('mousedown', onMouseDown);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
 
-                // Buttons
-                dislikeBtn.addEventListener('click', function() {
-                    if (data.phase !== 'vote') return;
-                    // Animation nach links
-                    card.className = 'card swiped-left';
-                    setTimeout(() => {
-                        voteThesis('dislike');
-                    }, 300);
-                });
+            dislikeBtn.addEventListener('click', function() {
+                if (currentPhase !== 'vote') return;
+                card.className = 'card swiped-left';
+                setTimeout(() => voteThesis('dislike'), 300);
+            });
+            likeBtn.addEventListener('click', function() {
+                if (currentPhase !== 'vote') return;
+                card.className = 'card swiped-right';
+                setTimeout(() => voteThesis('like'), 300);
+            });
+        }
 
-                likeBtn.addEventListener('click', function() {
-                    if (data.phase !== 'vote') return;
-                    card.className = 'card swiped-right';
-                    setTimeout(() => {
-                        voteThesis('like');
-                    }, 300);
-                });
-            }
+        function onTouchStart(e) {
+            if (currentPhase !== 'vote') return;
+            const touch = e.touches[0];
+            dragStartX = touch.clientX;
+            dragStartY = touch.clientY;
+            isDragging = true;
+            currentX = 0;
+            card.style.transition = 'none';
+        }
 
-            // Touch / Maus Variablen
-            let dragStartX = 0, dragStartY = 0;
-            let isDragging = false;
-            let currentX = 0;
-
-            function onTouchStart(e) {
-                if (data.phase !== 'vote') return;
-                const touch = e.touches[0];
-                dragStartX = touch.clientX;
-                dragStartY = touch.clientY;
-                isDragging = true;
-                currentX = 0;
-                card.style.transition = 'none';
-            }
-
-            function onTouchMove(e) {
-                if (!isDragging || data.phase !== 'vote') return;
-                e.preventDefault();
-                const touch = e.touches[0];
-                const deltaX = touch.clientX - dragStartX;
-                const deltaY = touch.clientY - dragStartY;
-                // Nur horizontales Wischen
-                if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
-                    // Begrenzung
-                    const maxOffset = 120;
-                    let offset = Math.min(Math.max(deltaX, -maxOffset), maxOffset);
-                    currentX = offset;
-                    const rotate = offset * 0.08;
-                    card.style.transform = `translateX(${offset}px) rotate(${rotate}deg)`;
-                    card.style.opacity = 1 - Math.abs(offset) / 300;
-                }
-            }
-
-            function onTouchEnd(e) {
-                if (!isDragging || data.phase !== 'vote') return;
-                isDragging = false;
-                const threshold = 80;
-                if (currentX > threshold) {
-                    // Swipe rechts = Like
-                    card.className = 'card swiped-right';
-                    setTimeout(() => {
-                        voteThesis('like');
-                    }, 300);
-                } else if (currentX < -threshold) {
-                    // Swipe links = Dislike
-                    card.className = 'card swiped-left';
-                    setTimeout(() => {
-                        voteThesis('dislike');
-                    }, 300);
-                } else {
-                    // Zurücksetzen
-                    card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-                    card.style.transform = '';
-                    card.style.opacity = '1';
-                }
-                currentX = 0;
-            }
-
-            // Maus-Events
-            let mouseDown = false;
-
-            function onMouseDown(e) {
-                if (data.phase !== 'vote') return;
-                mouseDown = true;
-                dragStartX = e.clientX;
-                dragStartY = e.clientY;
-                currentX = 0;
-                card.style.transition = 'none';
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
-            }
-
-            function onMouseMove(e) {
-                if (!mouseDown || data.phase !== 'vote') return;
-                const deltaX = e.clientX - dragStartX;
+        function onTouchMove(e) {
+            if (!isDragging || currentPhase !== 'vote') return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - dragStartX;
+            if (Math.abs(deltaX) > 10) {
                 const maxOffset = 120;
                 let offset = Math.min(Math.max(deltaX, -maxOffset), maxOffset);
                 currentX = offset;
@@ -841,166 +679,157 @@
                 card.style.transform = `translateX(${offset}px) rotate(${rotate}deg)`;
                 card.style.opacity = 1 - Math.abs(offset) / 300;
             }
+        }
 
-            function onMouseUp(e) {
-                if (!mouseDown) return;
-                mouseDown = false;
-                const threshold = 80;
-                if (currentX > threshold) {
-                    card.className = 'card swiped-right';
-                    setTimeout(() => {
-                        voteThesis('like');
-                    }, 300);
-                } else if (currentX < -threshold) {
-                    card.className = 'card swiped-left';
-                    setTimeout(() => {
-                        voteThesis('dislike');
-                    }, 300);
-                } else {
-                    card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-                    card.style.transform = '';
-                    card.style.opacity = '1';
-                }
-                currentX = 0;
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
+        function onTouchEnd(e) {
+            if (!isDragging || currentPhase !== 'vote') return;
+            isDragging = false;
+            const threshold = 80;
+            if (currentX > threshold) {
+                card.className = 'card swiped-right';
+                setTimeout(() => voteThesis('like'), 300);
+            } else if (currentX < -threshold) {
+                card.className = 'card swiped-left';
+                setTimeout(() => voteThesis('dislike'), 300);
+            } else {
+                card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+                card.style.transform = '';
+                card.style.opacity = '1';
             }
+            currentX = 0;
+        }
 
-            // ---------- Ranking ----------
-            function renderRanking() {
-                if (data.phase !== 'result') return;
-                // Sortieren nach Votes absteigend, dann nach Text
-                const sorted = [...data.theses].sort((a, b) => b.votes - a.votes || a.text.localeCompare(b.text));
-                const top12 = sorted.slice(0, 12);
-                const list = rankingList;
-                if (top12.length === 0) {
-                    list.innerHTML = '<li class="empty-msg">Noch keine Thesen vorhanden.</li>';
-                    return;
-                }
-                list.innerHTML = top12.map((t, i) => {
-                    let rankClass = '';
-                    if (i === 0) rankClass = 'gold';
-                    else if (i === 1) rankClass = 'silver';
-                    else if (i === 2) rankClass = 'bronze';
-                    return `
-                        <li>
-                            <span class="rank ${rankClass}">#${i+1}</span>
-                            <span class="text">${escapeHtml(t.text)}</span>
-                            <span class="votes">${t.votes}</span>
-                        </li>
-                    `;
-                }).join('');
+        let mouseDown = false;
+
+        function onMouseDown(e) {
+            if (currentPhase !== 'vote') return;
+            mouseDown = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            currentX = 0;
+            card.style.transition = 'none';
+        }
+
+        function onMouseMove(e) {
+            if (!mouseDown || currentPhase !== 'vote') return;
+            const deltaX = e.clientX - dragStartX;
+            const maxOffset = 120;
+            let offset = Math.min(Math.max(deltaX, -maxOffset), maxOffset);
+            currentX = offset;
+            const rotate = offset * 0.08;
+            card.style.transform = `translateX(${offset}px) rotate(${rotate}deg)`;
+            card.style.opacity = 1 - Math.abs(offset) / 300;
+        }
+
+        function onMouseUp(e) {
+            if (!mouseDown) return;
+            mouseDown = false;
+            const threshold = 80;
+            if (currentX > threshold) {
+                card.className = 'card swiped-right';
+                setTimeout(() => voteThesis('like'), 300);
+            } else if (currentX < -threshold) {
+                card.className = 'card swiped-left';
+                setTimeout(() => voteThesis('dislike'), 300);
+            } else {
+                card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+                card.style.transform = '';
+                card.style.opacity = '1';
             }
+            currentX = 0;
+        }
 
-            // ---------- Admin ----------
-            function setPhase(phase) {
-                if (!['collect', 'vote', 'result'].includes(phase)) return;
-                data.phase = phase;
-                // Beim Wechsel zu vote: Queue neu aufbauen und seenIds zurücksetzen? 
-                // Oder beibehalten? Ich setze seenIds zurück, damit alle Thesen neu bewertet werden können.
-                if (phase === 'vote') {
-                    data.seenIds = [];
-                    voteQueue = [];
-                    currentIndex = 0;
-                }
-                saveData();
-                renderAll();
+        // ==================== RANKING ====================
+        function renderRanking() {
+            if (currentPhase !== 'result') return;
+            const top12 = allTheses.slice(0, 12);
+            const list = rankingList;
+            if (top12.length === 0) {
+                list.innerHTML = '<li class="empty-msg">Noch keine Thesen vorhanden.</li>';
+                return;
             }
+            list.innerHTML = top12.map((t, i) => {
+                let rankClass = '';
+                if (i === 0) rankClass = 'gold';
+                else if (i === 1) rankClass = 'silver';
+                else if (i === 2) rankClass = 'bronze';
+                return `
+                    <li>
+                        <span class="rank ${rankClass}">#${i+1}</span>
+                        <span class="text">${escapeHtml(t.text)}</span>
+                        <span class="votes">${t.votes}</span>
+                    </li>
+                `;
+            }).join('');
+        }
 
-            // ---------- Export / Import ----------
-            function exportData() {
-                const json = JSON.stringify(data, null, 2);
-                const blob = new Blob([json], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `thesen-voting-${new Date().toISOString().slice(0,10)}.json`;
-                a.click();
-                URL.revokeObjectURL(url);
+        // ==================== ADMIN ====================
+        let adminAuthenticated = false;
+
+        function authenticateAdmin() {
+            const pwd = adminPasswordInput.value.trim();
+            if (pwd === ADMIN_PASSWORD) {
+                adminAuthenticated = true;
+                alert('✅ Admin-Authentifizierung erfolgreich! Du kannst jetzt die Phase ändern.');
+                adminPasswordInput.value = '';
+                adminPanel.classList.add('open');
+            } else {
+                alert('❌ Falsches Passwort.');
+                adminPasswordInput.value = '';
             }
+        }
 
-            function importData(file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const imported = JSON.parse(e.target.result);
-                        if (typeof imported.phase === 'string' && Array.isArray(imported.theses)) {
-                            data.phase = imported.phase;
-                            data.theses = imported.theses.map(t => ({
-                                id: t.id || Date.now() + Math.random(),
-                                text: t.text || '',
-                                votes: typeof t.votes === 'number' ? t.votes : 0
-                            }));
-                            data.seenIds = imported.seenIds || [];
-                            saveData();
-                            renderAll();
-                            alert('Daten erfolgreich importiert!');
-                        } else {
-                            alert('Ungültiges Dateiformat.');
-                        }
-                    } catch (err) {
-                        alert('Fehler beim Import: ' + err.message);
-                    }
-                };
-                reader.readAsText(file);
+        function setPhase(phase) {
+            if (!adminAuthenticated) {
+                alert('Bitte zuerst als Admin authentifizieren.');
+                return;
             }
-
-            // ---------- Helper ----------
-            function escapeHtml(text) {
-                const div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
-            }
-
-            // ---------- Event Listener ----------
-            addBtn.addEventListener('click', addThesis);
-            thesisInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') addThesis();
-            });
-
-            adminToggle.addEventListener('click', function() {
-                adminPanel.classList.toggle('open');
-            });
-
-            applyPhaseBtn.addEventListener('click', function() {
-                const newPhase = phaseSelect.value;
-                setPhase(newPhase);
-                adminPanel.classList.remove('open');
-            });
-
-            exportBtn.addEventListener('click', exportData);
-            importBtn.addEventListener('click', function() {
-                fileInput.click();
-            });
-            fileInput.addEventListener('change', function(e) {
-                if (this.files.length > 0) {
-                    importData(this.files[0]);
-                }
-                this.value = '';
-            });
-
-            // ---------- Initialisierung ----------
-            loadData();
-            // Sicherstellen, dass seenIds existiert
-            if (!data.seenIds) data.seenIds = [];
-            // Beim Start: Wenn Phase vote ist, Queue initialisieren
-            if (data.phase === 'vote') {
+            if (!['collect', 'vote', 'result'].includes(phase)) return;
+            database.ref('phase').set(phase);
+            if (phase === 'vote') {
+                seenIds = [];
                 voteQueue = [];
                 currentIndex = 0;
             }
-            renderAll();
+            adminPanel.classList.remove('open');
+        }
 
-            // Tastatur-Shortcuts für Voten (optional)
-            document.addEventListener('keydown', function(e) {
-                if (data.phase !== 'vote') return;
-                if (e.key === 'ArrowLeft') {
-                    dislikeBtn.click();
-                } else if (e.key === 'ArrowRight') {
-                    likeBtn.click();
-                }
-            });
+        function updateAdminSelect() {
+            phaseSelect.value = currentPhase;
+        }
 
-        })();
+        // ==================== EVENT LISTENER ====================
+        addBtn.addEventListener('click', addThesis);
+        thesisInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addThesis(); });
+
+        adminToggle.addEventListener('click', () => {
+            adminPanel.classList.toggle('open');
+            if (adminPanel.classList.contains('open')) adminPasswordInput.focus();
+        });
+
+        applyPhaseBtn.addEventListener('click', () => setPhase(phaseSelect.value));
+        adminAuthBtn.addEventListener('click', authenticateAdmin);
+        adminPasswordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') authenticateAdmin(); });
+
+        document.addEventListener('keydown', (e) => {
+            if (currentPhase !== 'vote') return;
+            if (e.key === 'ArrowLeft') dislikeBtn.click();
+            else if (e.key === 'ArrowRight') likeBtn.click();
+        });
+
+        // ==================== INIT ====================
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        initCardSwipe();
+        database.ref('phase').once('value', (snap) => {
+            if (!snap.val()) database.ref('phase').set('collect');
+        });
+
+        console.log('🔥 Thesen-Voting mit Firebase gestartet.');
     </script>
 </body>
 </html>
