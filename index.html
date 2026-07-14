@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Thesen‑Voting · Rasenschach</title>
+  <title>Thesen · Rasenschach</title>
+  <!-- Favicon (kleines T im Tab) -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%231a1a1a'/%3E%3Ctext x='16' y='24' font-family='Arial' font-size='24' font-weight='bold' fill='%23f0f0f0' text-anchor='middle'%3ET%3C/text%3E%3C/svg%3E" />
   <!-- Firebase SDKs (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -67,7 +69,7 @@
     }
 
     /* ============================
-       KOPF – mit Logo
+       KOPF – ohne Emojis
        ============================ */
     .app-header {
       display: flex;
@@ -78,20 +80,6 @@
       margin-bottom: 16px;
       padding-bottom: 12px;
       border-bottom: var(--border);
-    }
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .header-left .logo {
-      width: 44px;
-      height: 44px;
-      object-fit: contain;
-      border-radius: 50%;
-      border: var(--border);
-      background: rgba(255,255,255,0.05);
-      padding: 4px;
     }
     .app-header h1 {
       font-family: 'Anton', 'Arial Narrow', Impact, sans-serif;
@@ -486,9 +474,7 @@
       #app { padding: 16px; border-radius: 20px; }
       .card { font-size: 18px; padding: 24px 16px; }
       .card-actions button { width: 60px; height: 60px; font-size: 22px; }
-      .app-header h1 { font-size: 1.2rem; }
-      .header-left .logo { width: 36px; height: 36px; }
-      .phase-badge { font-size: 0.65rem; padding: 3px 10px; }
+      .app-header h1 { font-size: 1.4rem; }
     }
   </style>
 </head>
@@ -497,13 +483,9 @@
   <canvas id="bgCanvas"></canvas>
 
   <div id="app">
-    <!-- Kopf mit Logo -->
+    <!-- Kopf mit Phasen-Badge -->
     <div class="app-header">
-      <div class="header-left">
-        <!-- BILD: hier bitte dein eigenes Logo einfügen -->
-        <img class="logo" src="grafiken/logo.png" alt="Logo" />
-        <h1>Thesen</h1>
-      </div>
+      <h1>Thesen</h1>
       <span class="phase-badge" id="phaseBadge">Laden…</span>
     </div>
 
