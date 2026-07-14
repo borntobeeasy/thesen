@@ -8,7 +8,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
-        /* gleicher CSS-Code wie vorher, unverändert */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -167,9 +166,10 @@
             text-align: center;
             border: 2px solid #eef2f6;
             transition: transform 0.3s ease, opacity 0.3s ease;
+            cursor: default;
+            will-change: transform;
             user-select: none;
             line-height: 1.5;
-            cursor: default; /* kein Grab-Cursor mehr */
         }
 
         .card.swiped-left {
@@ -191,6 +191,10 @@
             justify-content: center;
             gap: 24px;
             margin-top: 8px;
+        }
+
+        .card-actions.hidden {
+            display: none;
         }
 
         .card-actions button {
@@ -310,6 +314,7 @@
             background: #16a34a;
         }
 
+        /* Admin-Bereich */
         .admin-area {
             margin-top: 28px;
             border-top: 2px dashed #dce1e9;
@@ -388,6 +393,7 @@
             text-align: center;
         }
 
+        /* Modal */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -510,7 +516,7 @@
                     <span class="card-text" id="cardText">Keine Thesen zum Voten</span>
                 </div>
             </div>
-            <div class="card-actions">
+            <div class="card-actions" id="cardActions">
                 <button class="btn-dislike" id="dislikeBtn">✕</button>
                 <button class="btn-like" id="likeBtn">✓</button>
             </div>
@@ -588,7 +594,7 @@
         let voteQueue = [];
         let currentIndex = 0;
 
-        const ADMIN_PASSWORD = 'admin123'; // kann hier geändert werden
+        const ADMIN_PASSWORD = 'admin123';
         let adminAuthenticated = false;
 
         // DOM-Referenzen
@@ -603,6 +609,7 @@
         const cardText = document.getElementById('cardText');
         const dislikeBtn = document.getElementById('dislikeBtn');
         const likeBtn = document.getElementById('likeBtn');
+        const cardActions = document.getElementById('cardActions');
         const remainingCount = document.getElementById('remainingCount');
         const rankingList = document.getElementById('rankingList');
         const adminToggle = document.getElementById('adminToggle');
@@ -733,25 +740,35 @@
 
         function renderVoteCard() {
             if (currentPhase !== 'vote') return;
-            if (voteQueue.length === 0 || currentIndex >= voteQueue.length) {
+
+            // Prüfen, ob noch Thesen vorhanden sind
+            const hasMore = voteQueue.length > 0 && currentIndex < voteQueue.length;
+
+            if (!hasMore) {
+                // Ende – Buttons ausblenden, Abschlussmeldung anzeigen
                 cardText.textContent = '🎉 Alle Thesen wurden bewertet!';
                 card.style.transform = '';
                 card.style.opacity = '1';
                 card.className = 'card';
                 remainingCount.textContent = '0';
+                cardActions.classList.add('hidden');
                 return;
             }
+
+            // Normale Karte anzeigen
             const thesis = voteQueue[currentIndex];
             cardText.textContent = thesis.text;
             card.style.transform = '';
             card.style.opacity = '1';
             card.className = 'card';
             remainingCount.textContent = voteQueue.length - currentIndex;
+            cardActions.classList.remove('hidden');
         }
 
         function voteThesis(decision) {
             if (currentPhase !== 'vote') return;
             if (voteQueue.length === 0 || currentIndex >= voteQueue.length) return;
+
             const thesis = voteQueue[currentIndex];
             if (decision === 'like') {
                 const ref = database.ref('theses/' + thesis.id + '/votes');
@@ -762,18 +779,18 @@
             renderVoteCard();
         }
 
-        // ==================== BUTTON-EVENTS (ohne Swipe) ====================
+        // ==================== BUTTON-EVENTS (kein Swipe) ====================
         function initVoteButtons() {
             dislikeBtn.addEventListener('click', function() {
                 if (currentPhase !== 'vote') return;
-                // Animation links
+                if (voteQueue.length === 0 || currentIndex >= voteQueue.length) return;
                 card.className = 'card swiped-left';
                 setTimeout(() => voteThesis('dislike'), 300);
             });
 
             likeBtn.addEventListener('click', function() {
                 if (currentPhase !== 'vote') return;
-                // Animation rechts
+                if (voteQueue.length === 0 || currentIndex >= voteQueue.length) return;
                 card.className = 'card swiped-right';
                 setTimeout(() => voteThesis('like'), 300);
             });
@@ -833,7 +850,7 @@
                 closeAdminModal();
                 adminPanel.classList.add('open');
                 updateAdminSelect();
-                renderCollectList(); // damit Lösch-Buttons für Admin aktiviert werden
+                renderCollectList();
                 alert('✅ Admin erfolgreich authentifiziert.');
             } else {
                 alert('❌ Falsches Passwort.');
@@ -887,9 +904,10 @@
 
         exportResultBtn.addEventListener('click', exportTop12);
 
-        // Tastatur-Shortcuts für Voten
+        // Tastatur-Shortcuts für Voten (nur wenn Buttons sichtbar)
         document.addEventListener('keydown', (e) => {
             if (currentPhase !== 'vote') return;
+            if (cardActions.classList.contains('hidden')) return;
             if (e.key === 'ArrowLeft') dislikeBtn.click();
             else if (e.key === 'ArrowRight') likeBtn.click();
         });
@@ -901,9 +919,7 @@
             return div.innerHTML;
         }
 
-        // Vote-Buttons initialisieren (kein Swipe mehr)
         initVoteButtons();
-
         database.ref('phase').once('value', (snap) => {
             if (!snap.val()) database.ref('phase').set('collect');
         });
