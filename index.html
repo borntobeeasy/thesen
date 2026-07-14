@@ -534,7 +534,7 @@
         <div id="phaseResult" style="display:none;">
             <p style="color:#64748b; margin-bottom:12px;">🏆 Die Top‑12 Thesen nach Stimmen</p>
             <ol class="ranking" id="rankingList"></ol>
-            <button class="export-btn" id="exportResultBtn">📥 Top‑12 als JSON herunterladen</button>
+            <button class="export-btn" id="exportResultBtn">📥 Rasenschach‑JSON exportieren</button>
         </div>
 
         <!-- Admin -->
@@ -848,14 +848,53 @@
             }).join('');
         }
 
-        function exportTop12() {
-            const top12 = allTheses.slice(0, 12).map(t => ({ text: t.text, votes: t.votes }));
-            const json = JSON.stringify(top12, null, 2);
+        // NEUE EXPORT-FUNKTION IM RASENSCHACH-FORMAT
+        function exportRasenschach() {
+            // Alle Thesentexte (nicht nur Top 12) aus allTheses extrahieren
+            const thesesTexts = allTheses.map(t => t.text);
+
+            // Statische Vorlage aus der Beispiel-JSON – nur das theses-Array und exportedAt werden dynamisch gesetzt
+            const template = {
+                "app": "rasenschach",
+                "version": 3,
+                "exportedAt": new Date().toISOString(),
+                "data": {
+                    "theses": thesesTexts,
+                    "positions": [
+                        {"id":1,"side":null,"piece":null,"knightSwing":-1,"polarity":null},
+                        {"id":2,"side":null,"piece":null,"knightSwing":1,"polarity":null},
+                        {"id":3,"side":null,"piece":null,"knightSwing":1,"polarity":null},
+                        {"id":4,"side":null,"piece":null,"knightSwing":-1,"polarity":null},
+                        {"id":5,"side":null,"piece":null,"knightSwing":-1,"polarity":null},
+                        {"id":6,"side":null,"piece":null,"knightSwing":-1,"polarity":null},
+                        {"id":7,"side":null,"piece":null,"knightSwing":1,"polarity":null},
+                        {"id":8,"side":null,"piece":null,"knightSwing":1,"polarity":null},
+                        {"id":9,"side":null,"piece":null,"knightSwing":1,"polarity":null},
+                        {"id":10,"side":null,"piece":null,"knightSwing":-1,"polarity":null},
+                        {"id":11,"side":null,"piece":null,"knightSwing":-1,"polarity":null},
+                        {"id":12,"side":null,"piece":null,"knightSwing":1,"polarity":null}
+                    ],
+                    "names": {"white":"","black":""},
+                    "results": {
+                        "white": {"rook":0,"bishop":0,"knight":0,"queen":0,"king":0},
+                        "black": {"rook":0,"bishop":0,"knight":0,"queen":0,"king":0}
+                    },
+                    "questionValue": null,
+                    "figureImages": {},
+                    "teamLogos": {"white":null,"black":null}
+                }
+            };
+
+            const json = JSON.stringify(template, null, 2);
             const blob = new Blob([json], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `top12-thesen-${new Date().toISOString().slice(0,10)}.json`;
+            // Dateiname wie im Beispiel: rasenschach-speicherstand-YYYY-MM-DD-HH-MM-SS.json
+            const now = new Date();
+            const dateStr = now.toISOString().slice(0,10);
+            const timeStr = now.toTimeString().slice(0,8).replace(/:/g, '-');
+            a.download = `rasenschach-speicherstand-${dateStr}-${timeStr}.json`;
             a.click();
             URL.revokeObjectURL(url);
         }
@@ -950,7 +989,8 @@
             if (e.target === adminModal) closeAdminModal();
         });
 
-        exportResultBtn.addEventListener('click', exportTop12);
+        // Export-Button ruft jetzt die neue Funktion auf
+        exportResultBtn.addEventListener('click', exportRasenschach);
 
         // Tastatur-Shortcuts für Voten (nur wenn Buttons sichtbar)
         document.addEventListener('keydown', (e) => {
