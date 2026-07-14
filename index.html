@@ -8,6 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
+        /* gleicher CSS-Code wie vorher, unverändert */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -166,10 +167,9 @@
             text-align: center;
             border: 2px solid #eef2f6;
             transition: transform 0.3s ease, opacity 0.3s ease;
-            cursor: grab;
-            will-change: transform;
             user-select: none;
             line-height: 1.5;
+            cursor: default; /* kein Grab-Cursor mehr */
         }
 
         .card.swiped-left {
@@ -310,7 +310,6 @@
             background: #16a34a;
         }
 
-        /* Admin-Bereich */
         .admin-area {
             margin-top: 28px;
             border-top: 2px dashed #dce1e9;
@@ -389,7 +388,6 @@
             text-align: center;
         }
 
-        /* Modal */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -537,7 +535,6 @@
                     <option value="result">Ergebnis</option>
                 </select>
                 <button id="applyPhaseBtn">Anwenden</button>
-                <!-- Hinweis: Kein Passwortfeld mehr hier, weil Popup -->
             </div>
         </div>
 
@@ -765,114 +762,21 @@
             renderVoteCard();
         }
 
-        // ==================== SWIPE ====================
-        let isDragging = false, dragStartX = 0, dragStartY = 0, currentX = 0;
-
-        function initCardSwipe() {
-            if (card._swipeInitialized) return;
-            card._swipeInitialized = true;
-
-            card.addEventListener('touchstart', onTouchStart, { passive: false });
-            card.addEventListener('touchmove', onTouchMove, { passive: false });
-            card.addEventListener('touchend', onTouchEnd, { passive: false });
-
-            card.addEventListener('mousedown', onMouseDown);
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-
+        // ==================== BUTTON-EVENTS (ohne Swipe) ====================
+        function initVoteButtons() {
             dislikeBtn.addEventListener('click', function() {
                 if (currentPhase !== 'vote') return;
+                // Animation links
                 card.className = 'card swiped-left';
                 setTimeout(() => voteThesis('dislike'), 300);
             });
+
             likeBtn.addEventListener('click', function() {
                 if (currentPhase !== 'vote') return;
+                // Animation rechts
                 card.className = 'card swiped-right';
                 setTimeout(() => voteThesis('like'), 300);
             });
-        }
-
-        function onTouchStart(e) {
-            if (currentPhase !== 'vote') return;
-            const touch = e.touches[0];
-            dragStartX = touch.clientX;
-            dragStartY = touch.clientY;
-            isDragging = true;
-            currentX = 0;
-            card.style.transition = 'none';
-        }
-
-        function onTouchMove(e) {
-            if (!isDragging || currentPhase !== 'vote') return;
-            e.preventDefault();
-            const touch = e.touches[0];
-            const deltaX = touch.clientX - dragStartX;
-            if (Math.abs(deltaX) > 10) {
-                const maxOffset = 120;
-                let offset = Math.min(Math.max(deltaX, -maxOffset), maxOffset);
-                currentX = offset;
-                const rotate = offset * 0.08;
-                card.style.transform = `translateX(${offset}px) rotate(${rotate}deg)`;
-                card.style.opacity = 1 - Math.abs(offset) / 300;
-            }
-        }
-
-        function onTouchEnd(e) {
-            if (!isDragging || currentPhase !== 'vote') return;
-            isDragging = false;
-            const threshold = 80;
-            if (currentX > threshold) {
-                card.className = 'card swiped-right';
-                setTimeout(() => voteThesis('like'), 300);
-            } else if (currentX < -threshold) {
-                card.className = 'card swiped-left';
-                setTimeout(() => voteThesis('dislike'), 300);
-            } else {
-                card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-                card.style.transform = '';
-                card.style.opacity = '1';
-            }
-            currentX = 0;
-        }
-
-        let mouseDown = false;
-
-        function onMouseDown(e) {
-            if (currentPhase !== 'vote') return;
-            mouseDown = true;
-            dragStartX = e.clientX;
-            dragStartY = e.clientY;
-            currentX = 0;
-            card.style.transition = 'none';
-        }
-
-        function onMouseMove(e) {
-            if (!mouseDown || currentPhase !== 'vote') return;
-            const deltaX = e.clientX - dragStartX;
-            const maxOffset = 120;
-            let offset = Math.min(Math.max(deltaX, -maxOffset), maxOffset);
-            currentX = offset;
-            const rotate = offset * 0.08;
-            card.style.transform = `translateX(${offset}px) rotate(${rotate}deg)`;
-            card.style.opacity = 1 - Math.abs(offset) / 300;
-        }
-
-        function onMouseUp(e) {
-            if (!mouseDown) return;
-            mouseDown = false;
-            const threshold = 80;
-            if (currentX > threshold) {
-                card.className = 'card swiped-right';
-                setTimeout(() => voteThesis('like'), 300);
-            } else if (currentX < -threshold) {
-                card.className = 'card swiped-left';
-                setTimeout(() => voteThesis('dislike'), 300);
-            } else {
-                card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-                card.style.transform = '';
-                card.style.opacity = '1';
-            }
-            currentX = 0;
         }
 
         // ==================== RANKING & EXPORT ====================
@@ -928,10 +832,8 @@
                 adminAuthenticated = true;
                 closeAdminModal();
                 adminPanel.classList.add('open');
-                // Nach Authentifizierung Admin-Panel sichtbar machen und Phase-Select aktualisieren
                 updateAdminSelect();
-                // Auch die Lösch-Buttons neu rendern (Admin kann jetzt alle löschen)
-                renderCollectList();
+                renderCollectList(); // damit Lösch-Buttons für Admin aktiviert werden
                 alert('✅ Admin erfolgreich authentifiziert.');
             } else {
                 alert('❌ Falsches Passwort.');
@@ -965,7 +867,6 @@
 
         adminToggle.addEventListener('click', () => {
             if (adminAuthenticated) {
-                // Wenn bereits authentifiziert, einfach Panel togglen
                 adminPanel.classList.toggle('open');
             } else {
                 openAdminModal();
@@ -974,19 +875,16 @@
 
         applyPhaseBtn.addEventListener('click', () => setPhase(phaseSelect.value));
 
-        // Modal-Events
         modalConfirm.addEventListener('click', handleAdminAuth);
         modalCancel.addEventListener('click', closeAdminModal);
         modalPassword.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') handleAdminAuth();
             if (e.key === 'Escape') closeAdminModal();
         });
-        // Klick außerhalb des Modals schließen
         adminModal.addEventListener('click', (e) => {
             if (e.target === adminModal) closeAdminModal();
         });
 
-        // Export-Button
         exportResultBtn.addEventListener('click', exportTop12);
 
         // Tastatur-Shortcuts für Voten
@@ -1003,7 +901,9 @@
             return div.innerHTML;
         }
 
-        initCardSwipe();
+        // Vote-Buttons initialisieren (kein Swipe mehr)
+        initVoteButtons();
+
         database.ref('phase').once('value', (snap) => {
             if (!snap.val()) database.ref('phase').set('collect');
         });
