@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Thesen‑Voting</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+        }
+
+        #app {
+            max-width: 480px;
+            width: 100%;
+            background: white;
+            border-radius: 32px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            padding: 24px 20px 32px;
+            position: relative;
+            min-height: 80vh;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .phase-badge {
+            font-size: 14px;
+            font-weight: 500;
+            background: #e0e7ff;
+            color: #4338ca;
+            padding: 4px 14px;
+            border-radius: 40px;
+            letter-spacing: 0.3px;
+        }
+
+        hr {
+            border: none;
+            border-top: 2px solid #eef2f6;
+            margin: 16px 0 20px;
+        }
+
+        /* Phase: Sammeln */
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #dce1e9;
+            border-radius: 40px;
+            font-size: 16px;
+            outline: none;
+            transition: border 0.2s;
+        }
+
+        .input-group input:focus {
+            border-color: #6366f1;
+        }
+
+        .input-group button {
+            padding: 12px 24px;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 40px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .input-group button:hover {
+            background: #4f46e5;
+        }
+
+        .theses-list {
+            list-style: none;
+            margin-top: 8px;
+        }
+
+        .theses-list li {
+            background: #f8fafc;
+            padding: 14px 16px;
+            border-radius: 16px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #eef2f6;
+            word-break: break-word;
+        }
+
+        .theses-list li .delete-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0 6px;
+            transition: color 0.2s;
+        }
+
+        .theses-list li .delete-btn:hover {
+            color: #ef4444;
+        }
+
+        .empty-msg {
+            color: #94a3b8;
+            text-align: center;
+            padding: 30px 0;
+            font-style: italic;
+        }
+
+        /* Phase: Voten */
+        .card-area {
+            position: relative;
+            height: 380px;
+            margin: 16px 0 20px;
+            touch-action: none;
+        }
+
+        .card {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.10);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 24px;
+            font-size: 22px;
+            font-weight: 500;
+            color: #1e293b;
+            text-align: center;
+            border: 2px solid #eef2f6;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            cursor: grab;
+            will-change: transform;
+            user-select: none;
+            line-height: 1.5;
+        }
+
+        .card.swiped-left {
+            transform: translateX(-120%) rotate(-12deg);
+            opacity: 0;
+        }
+
+        .card.swiped-right {
+            transform: translateX(120%) rotate(12deg);
+            opacity: 0;
+        }
+
+        .card .card-text {
+            pointer-events: none;
+        }
+
+        .card-actions {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 8px;
+        }
+
+        .card-actions button {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            border: none;
+            font-size: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            background: white;
+        }
+
+        .card-actions button:active {
+            transform: scale(0.90);
+        }
+
+        .btn-dislike {
+            color: #ef4444;
+            border: 2px solid #fecaca;
+        }
+
+        .btn-dislike:hover {
+            background: #fef2f2;
+        }
+
+        .btn-like {
+            color: #22c55e;
+            border: 2px solid #bbf7d0;
+        }
+
+        .btn-like:hover {
+            background: #f0fdf4;
+        }
+
+        .vote-counter {
+            text-align: center;
+            margin-top: 8px;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .vote-counter span {
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        /* Phase: Ergebnisse */
+        .ranking {
+            list-style: none;
+            margin-top: 8px;
+        }
+
+        .ranking li {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            background: #f8fafc;
+            border-radius: 16px;
+            margin-bottom: 8px;
+            border: 1px solid #eef2f6;
+        }
+
+        .ranking .rank {
+            font-weight: 700;
+            font-size: 18px;
+            color: #6366f1;
+            min-width: 32px;
+            text-align: center;
+        }
+
+        .ranking .rank.gold {
+            color: #f59e0b;
+        }
+
+        .ranking .rank.silver {
+            color: #94a3b8;
+        }
+
+        .ranking .rank.bronze {
+            color: #d97706;
+        }
+
+        .ranking .text {
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .ranking .votes {
+            font-weight: 600;
+            color: #475569;
+            background: #e2e8f0;
+            padding: 2px 14px;
+            border-radius: 40px;
+            font-size: 14px;
+        }
+
+        .admin-area {
+            margin-top: 28px;
+            border-top: 2px dashed #dce1e9;
+            padding-top: 20px;
+        }
+
+        .admin-toggle {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 12px;
+            padding: 6px 12px;
+            border-radius: 40px;
+            transition: background 0.2s;
+        }
+
+        .admin-toggle:hover {
+            background: #f1f5f9;
+        }
+
+        .admin-panel {
+            display: none;
+            background: #f1f5f9;
+            padding: 16px;
+            border-radius: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .admin-panel.open {
+            display: flex;
+        }
+
+        .admin-panel label {
+            font-weight: 500;
+            font-size: 14px;
+            color: #334155;
+        }
+
+        .admin-panel select {
+            padding: 8px 16px;
+            border-radius: 40px;
+            border: 2px solid #dce1e9;
+            background: white;
+            font-size: 14px;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .admin-panel button {
+            padding: 8px 18px;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .admin-panel button:hover {
+            background: #4f46e5;
+        }
+
+        .admin-panel .export-import {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+
+        .admin-panel .export-import button {
+            background: #475569;
+            flex: 1;
+            min-width: 80px;
+        }
+
+        .admin-panel .export-import button:hover {
+            background: #334155;
+        }
+
+        .admin-panel input[type="file"] {
+            display: none;
+        }
+
+        .footer {
+            margin-top: 16px;
+            font-size: 12px;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            #app {
+                padding: 16px;
+                border-radius: 24px;
+            }
+            .card {
+                font-size: 18px;
+                padding: 24px 16px;
+            }
+            .card-actions button {
+                width: 60px;
+                height: 60px;
+                font-size: 26px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>
+            <span>📋 Thesen</span>
+            <span class="phase-badge" id="phaseBadge">Sammeln</span>
+        </h1>
+        <hr />
+
+        <!-- PHASE 1: SAMMELN -->
+        <div id="phaseCollect">
+            <div class="input-group">
+                <input type="text" id="thesisInput" placeholder="Neue These eingeben …" maxlength="200" />
+                <button id="addThesisBtn">+ Hinzufügen</button>
+            </div>
+            <ul class="theses-list" id="thesesList"></ul>
+        </div>
+
+        <!-- PHASE 2: VOTEN -->
+        <div id="phaseVote" style="display:none;">
+            <div class="card-area" id="cardArea">
+                <div class="card" id="card">
+                    <span class="card-text" id="cardText">Keine Thesen zum Voten</span>
+                </div>
+            </div>
+            <div class="card-actions">
+                <button class="btn-dislike" id="dislikeBtn">✕</button>
+                <button class="btn-like" id="likeBtn">✓</button>
+            </div>
+            <div class="vote-counter" id="voteCounter">Noch <span id="remainingCount">0</span> Thesen</div>
+        </div>
+
+        <!-- PHASE 3: ERGEBNISSE -->
+        <div id="phaseResult" style="display:none;">
+            <p style="color:#64748b; margin-bottom:12px;">🏆 Die Top‑12 Thesen nach Stimmen</p>
+            <ol class="ranking" id="rankingList"></ol>
+        </div>
+
+        <!-- ADMIN -->
+        <div class="admin-area">
+            <button class="admin-toggle" id="adminToggle">⚙️ Admin</button>
+            <div class="admin-panel" id="adminPanel">
+                <label for="phaseSelect">Phase:</label>
+                <select id="phaseSelect">
+                    <option value="collect">Sammeln</option>
+                    <option value="vote">Voten</option>
+                    <option value="result">Ergebnis</option>
+                </select>
+                <button id="applyPhaseBtn">Anwenden</button>
+                <div class="export-import">
+                    <button id="exportBtn">📥 Export</button>
+                    <button id="importBtn">📤 Import</button>
+                    <input type="file" id="fileInput" accept=".json" />
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">Daten werden lokal im Browser gespeichert.</div>
+    </div>
+
+    <script>
+        (function() {
+            // ---------- Daten ----------
+            const STORAGE_KEY = 'thesis_voting_data';
+
+            let data = {
+                phase: 'collect',        // 'collect' | 'vote' | 'result'
+                theses: []               // { id, text, votes }
+            };
+
+            let currentIndex = 0;        // Index der aktuell angezeigten These beim Voten
+            let isSwiping = false;
+            let startX = 0, startY = 0;
+            let cardOffsetX = 0;
+            let cardElement = null;
+            let cardText = null;
+
+            // ---------- DOM-Referenzen ----------
+            const phaseBadge = document.getElementById('phaseBadge');
+            const phaseCollect = document.getElementById('phaseCollect');
+            const phaseVote = document.getElementById('phaseVote');
+            const phaseResult = document.getElementById('phaseResult');
+            const thesesList = document.getElementById('thesesList');
+            const thesisInput = document.getElementById('thesisInput');
+            const addBtn = document.getElementById('addThesisBtn');
+
+            const cardArea = document.getElementById('cardArea');
+            const card = document.getElementById('card');
+            const cardText = document.getElementById('cardText');
+            const dislikeBtn = document.getElementById('dislikeBtn');
+            const likeBtn = document.getElementById('likeBtn');
+            const remainingCount = document.getElementById('remainingCount');
+
+            const rankingList = document.getElementById('rankingList');
+
+            const adminToggle = document.getElementById('adminToggle');
+            const adminPanel = document.getElementById('adminPanel');
+            const phaseSelect = document.getElementById('phaseSelect');
+            const applyPhaseBtn = document.getElementById('applyPhaseBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            const importBtn = document.getElementById('importBtn');
+            const fileInput = document.getElementById('fileInput');
+
+            // ---------- Hilfsfunktionen ----------
+            function saveData() {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            }
+
+            function loadData() {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    try {
+                        const parsed = JSON.parse(raw);
+                        // Sicherstellen, dass alle Felder existieren
+                        data.phase = parsed.phase || 'collect';
+                        data.theses = parsed.theses || [];
+                        // Jede These muss votes haben
+                        data.theses = data.theses.map(t => ({
+                            id: t.id || Date.now() + Math.random(),
+                            text: t.text || '',
+                            votes: typeof t.votes === 'number' ? t.votes : 0
+                        }));
+                    } catch (e) {
+                        console.warn('Fehler beim Laden, verwende Standarddaten.');
+                        resetDefaultData();
+                    }
+                } else {
+                    resetDefaultData();
+                }
+            }
+
+            function resetDefaultData() {
+                data = {
+                    phase: 'collect',
+                    theses: []
+                };
+                saveData();
+            }
+
+            // ---------- Rendering ----------
+            function renderAll() {
+                renderPhase();
+                renderCollectList();
+                renderVoteCard();
+                renderRanking();
+                updateBadge();
+                updateAdminSelect();
+            }
+
+            function renderPhase() {
+                phaseCollect.style.display = 'none';
+                phaseVote.style.display = 'none';
+                phaseResult.style.display = 'none';
+
+                if (data.phase === 'collect') {
+                    phaseCollect.style.display = 'block';
+                } else if (data.phase === 'vote') {
+                    phaseVote.style.display = 'block';
+                    // Karten-Interaktion initialisieren
+                    initCardSwipe();
+                } else if (data.phase === 'result') {
+                    phaseResult.style.display = 'block';
+                }
+            }
+
+            function updateBadge() {
+                const map = {
+                    collect: '📝 Sammeln',
+                    vote: '👆 Voten',
+                    result: '🏆 Top 12'
+                };
+                phaseBadge.textContent = map[data.phase] || data.phase;
+            }
+
+            function updateAdminSelect() {
+                phaseSelect.value = data.phase;
+            }
+
+            // ---------- Sammeln ----------
+            function renderCollectList() {
+                const list = thesesList;
+                if (data.theses.length === 0) {
+                    list.innerHTML = '<li class="empty-msg">Noch keine Thesen eingereicht.</li>';
+                    return;
+                }
+                list.innerHTML = data.theses.map(t => `
+                    <li>
+                        <span>${escapeHtml(t.text)}</span>
+                        <button class="delete-btn" data-id="${t.id}">✕</button>
+                    </li>
+                `).join('');
+
+                // Lösch-Listener
+                list.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        const id = parseInt(this.dataset.id);
+                        deleteThesis(id);
+                    });
+                });
+            }
+
+            function deleteThesis(id) {
+                data.theses = data.theses.filter(t => t.id !== id);
+                saveData();
+                renderAll();
+            }
+
+            function addThesis() {
+                const text = thesisInput.value.trim();
+                if (!text) return;
+                if (data.theses.length >= 200) {
+                    alert('Maximal 200 Thesen erlaubt.');
+                    return;
+                }
+                data.theses.push({
+                    id: Date.now() + Math.random(),
+                    text: text,
+                    votes: 0
+                });
+                thesisInput.value = '';
+                saveData();
+                renderAll();
+            }
+
+            // ---------- Voten ----------
+            function getUnvotedTheses() {
+                // Alle Thesen, die noch nicht bewertet wurden (hier zählen wir die, die in der aktuellen Session noch nicht gesehen wurden?
+                // Da wir keine Benutzer haben, nehmen wir einfach alle Thesen, die noch nicht genügend Votes haben?
+                // Im Tinder-Stil: Jede These wird genau einmal gezeigt, und der Nutzer entscheidet.
+                // Also einfach alle Thesen durchgehen, aber wir müssen den Fortschritt speichern.
+                // Wir speichern den currentIndex im Datenobjekt? Oder wir behalten ihn nur im Speicher.
+                // Wenn Seite neu geladen, fängt er von vorne an – das ist ok.
+                // Aber wir wollen, dass bereits bewertete Thesen nicht wieder auftauchen.
+                // Dazu führen wir ein Set von IDs, die der Nutzer bereits gesehen hat.
+                // Da wir keine Benutzerverwaltung haben, verwenden wir localStorage für den Fortschritt pro Browser.
+                // Wir speichern den Index im data? Oder separat?
+                // Vereinfachung: Wir speichern den Fortschritt im data-Objekt.
+                if (!data.voteProgress) data.voteProgress = { seenIds: [] };
+                // Aber dann müssten wir das immer speichern.
+                // Besser: currentIndex ist der Index in der Liste der noch nicht bewerteten Thesen.
+                // Wir filtern die Thesen, die bereits bewertet wurden (d.h. die eine Stimme bekommen haben oder abgelehnt wurden?).
+                // Da wir nur "votes" zählen, aber nicht speichern, ob eine These abgelehnt wurde, wäre das schwierig.
+                // Wir können einfach alle Thesen in einer zufälligen Reihenfolge anzeigen und nachdem der Nutzer sie gesehen hat, als "gesehen" markieren.
+                // Wir speichern ein Array von IDs, die der Nutzer bereits gesehen hat.
+                // Das fügen wir dem data-Objekt hinzu.
+                if (!data.seenIds) data.seenIds = [];
+                const available = data.theses.filter(t => !data.seenIds.includes(t.id));
+                return available;
+            }
+
+            // Wir benötigen einen aktuellen Index für die Karte.
+            let voteQueue = [];
+
+            function buildVoteQueue() {
+                // Thesen, die noch nicht gesehen wurden
+                if (!data.seenIds) data.seenIds = [];
+                const unseen = data.theses.filter(t => !data.seenIds.includes(t.id));
+                // Mischen für zufällige Reihenfolge (Tinder-typisch)
+                for (let i = unseen.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [unseen[i], unseen[j]] = [unseen[j], unseen[i]];
+                }
+                voteQueue = unseen;
+                currentIndex = 0;
+            }
+
+            function renderVoteCard() {
+                if (data.phase !== 'vote') return;
+
+                // Queue aufbauen, falls leer
+                if (voteQueue.length === 0) {
+                    buildVoteQueue();
+                }
+
+                // Falls keine Thesen mehr übrig
+                if (voteQueue.length === 0 || currentIndex >= voteQueue.length) {
+                    cardText.textContent = '🎉 Alle Thesen wurden bewertet!';
+                    card.style.transform = '';
+                    card.style.opacity = '1';
+                    card.className = 'card';
+                    remainingCount.textContent = '0';
+                    // Buttons deaktivieren? Lassen wir sie aktiv, aber sie tun nichts.
+                    return;
+                }
+
+                const thesis = voteQueue[currentIndex];
+                cardText.textContent = thesis.text;
+                card.style.transform = '';
+                card.style.opacity = '1';
+                card.className = 'card';
+                remainingCount.textContent = voteQueue.length - currentIndex;
+
+                // Swipe-Reset
+                cardOffsetX = 0;
+            }
+
+            function voteThesis(decision) {
+                // decision: 'like' oder 'dislike'
+                if (voteQueue.length === 0 || currentIndex >= voteQueue.length) return;
+
+                const thesis = voteQueue[currentIndex];
+                if (decision === 'like') {
+                    // Stimme hinzufügen
+                    const found = data.theses.find(t => t.id === thesis.id);
+                    if (found) found.votes += 1;
+                }
+                // Als gesehen markieren
+                if (!data.seenIds) data.seenIds = [];
+                if (!data.seenIds.includes(thesis.id)) {
+                    data.seenIds.push(thesis.id);
+                }
+                saveData();
+
+                // Nächste These
+                currentIndex++;
+                renderVoteCard();
+            }
+
+            // Swipe-Interaktion
+            function initCardSwipe() {
+                // Event-Listener nur einmal setzen
+                // Wir nutzen eine globale Variable, um doppelte Listener zu vermeiden
+                if (card._swipeInitialized) return;
+                card._swipeInitialized = true;
+
+                const cardEl = card;
+
+                // Touch-Events
+                cardEl.addEventListener('touchstart', onTouchStart, { passive: false });
+                cardEl.addEventListener('touchmove', onTouchMove, { passive: false });
+                cardEl.addEventListener('touchend', onTouchEnd, { passive: false });
+
+                // Maus-Events (für Desktop)
+                cardEl.addEventListener('mousedown', onMouseDown);
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+
+                // Buttons
+                dislikeBtn.addEventListener('click', function() {
+                    if (data.phase !== 'vote') return;
+                    // Animation nach links
+                    card.className = 'card swiped-left';
+                    setTimeout(() => {
+                        voteThesis('dislike');
+                    }, 300);
+                });
+
+                likeBtn.addEventListener('click', function() {
+                    if (data.phase !== 'vote') return;
+                    card.className = 'card swiped-right';
+                    setTimeout(() => {
+                        voteThesis('like');
+                    }, 300);
+                });
+            }
+
+            // Touch / Maus Variablen
+            let dragStartX = 0, dragStartY = 0;
+            let isDragging = false;
+            let currentX = 0;
+
+            function onTouchStart(e) {
+                if (data.phase !== 'vote') return;
+                const touch = e.touches[0];
+                dragStartX = touch.clientX;
+                dragStartY = touch.clientY;
+                isDragging = true;
+                currentX = 0;
+                card.style.transition = 'none';
+            }
+
+            function onTouchMove(e) {
+                if (!isDragging || data.phase !== 'vote') return;
+                e.preventDefault();
+                const touch = e.touches[0];
+                const deltaX = touch.clientX - dragStartX;
+                const deltaY = touch.clientY - dragStartY;
+                // Nur horizontales Wischen
+                if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+                    // Begrenzung
+                    const maxOffset = 120;
+                    let offset = Math.min(Math.max(deltaX, -maxOffset), maxOffset);
+                    currentX = offset;
+                    const rotate = offset * 0.08;
+                    card.style.transform = `translateX(${offset}px) rotate(${rotate}deg)`;
+                    card.style.opacity = 1 - Math.abs(offset) / 300;
+                }
+            }
+
+            function onTouchEnd(e) {
+                if (!isDragging || data.phase !== 'vote') return;
+                isDragging = false;
+                const threshold = 80;
+                if (currentX > threshold) {
+                    // Swipe rechts = Like
+                    card.className = 'card swiped-right';
+                    setTimeout(() => {
+                        voteThesis('like');
+                    }, 300);
+                } else if (currentX < -threshold) {
+                    // Swipe links = Dislike
+                    card.className = 'card swiped-left';
+                    setTimeout(() => {
+                        voteThesis('dislike');
+                    }, 300);
+                } else {
+                    // Zurücksetzen
+                    card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+                    card.style.transform = '';
+                    card.style.opacity = '1';
+                }
+                currentX = 0;
+            }
+
+            // Maus-Events
+            let mouseDown = false;
+
+            function onMouseDown(e) {
+                if (data.phase !== 'vote') return;
+                mouseDown = true;
+                dragStartX = e.clientX;
+                dragStartY = e.clientY;
+                currentX = 0;
+                card.style.transition = 'none';
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            }
+
+            function onMouseMove(e) {
+                if (!mouseDown || data.phase !== 'vote') return;
+                const deltaX = e.clientX - dragStartX;
+                const maxOffset = 120;
+                let offset = Math.min(Math.max(deltaX, -maxOffset), maxOffset);
+                currentX = offset;
+                const rotate = offset * 0.08;
+                card.style.transform = `translateX(${offset}px) rotate(${rotate}deg)`;
+                card.style.opacity = 1 - Math.abs(offset) / 300;
+            }
+
+            function onMouseUp(e) {
+                if (!mouseDown) return;
+                mouseDown = false;
+                const threshold = 80;
+                if (currentX > threshold) {
+                    card.className = 'card swiped-right';
+                    setTimeout(() => {
+                        voteThesis('like');
+                    }, 300);
+                } else if (currentX < -threshold) {
+                    card.className = 'card swiped-left';
+                    setTimeout(() => {
+                        voteThesis('dislike');
+                    }, 300);
+                } else {
+                    card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+                    card.style.transform = '';
+                    card.style.opacity = '1';
+                }
+                currentX = 0;
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            }
+
+            // ---------- Ranking ----------
+            function renderRanking() {
+                if (data.phase !== 'result') return;
+                // Sortieren nach Votes absteigend, dann nach Text
+                const sorted = [...data.theses].sort((a, b) => b.votes - a.votes || a.text.localeCompare(b.text));
+                const top12 = sorted.slice(0, 12);
+                const list = rankingList;
+                if (top12.length === 0) {
+                    list.innerHTML = '<li class="empty-msg">Noch keine Thesen vorhanden.</li>';
+                    return;
+                }
+                list.innerHTML = top12.map((t, i) => {
+                    let rankClass = '';
+                    if (i === 0) rankClass = 'gold';
+                    else if (i === 1) rankClass = 'silver';
+                    else if (i === 2) rankClass = 'bronze';
+                    return `
+                        <li>
+                            <span class="rank ${rankClass}">#${i+1}</span>
+                            <span class="text">${escapeHtml(t.text)}</span>
+                            <span class="votes">${t.votes}</span>
+                        </li>
+                    `;
+                }).join('');
+            }
+
+            // ---------- Admin ----------
+            function setPhase(phase) {
+                if (!['collect', 'vote', 'result'].includes(phase)) return;
+                data.phase = phase;
+                // Beim Wechsel zu vote: Queue neu aufbauen und seenIds zurücksetzen? 
+                // Oder beibehalten? Ich setze seenIds zurück, damit alle Thesen neu bewertet werden können.
+                if (phase === 'vote') {
+                    data.seenIds = [];
+                    voteQueue = [];
+                    currentIndex = 0;
+                }
+                saveData();
+                renderAll();
+            }
+
+            // ---------- Export / Import ----------
+            function exportData() {
+                const json = JSON.stringify(data, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `thesen-voting-${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            function importData(file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const imported = JSON.parse(e.target.result);
+                        if (typeof imported.phase === 'string' && Array.isArray(imported.theses)) {
+                            data.phase = imported.phase;
+                            data.theses = imported.theses.map(t => ({
+                                id: t.id || Date.now() + Math.random(),
+                                text: t.text || '',
+                                votes: typeof t.votes === 'number' ? t.votes : 0
+                            }));
+                            data.seenIds = imported.seenIds || [];
+                            saveData();
+                            renderAll();
+                            alert('Daten erfolgreich importiert!');
+                        } else {
+                            alert('Ungültiges Dateiformat.');
+                        }
+                    } catch (err) {
+                        alert('Fehler beim Import: ' + err.message);
+                    }
+                };
+                reader.readAsText(file);
+            }
+
+            // ---------- Helper ----------
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // ---------- Event Listener ----------
+            addBtn.addEventListener('click', addThesis);
+            thesisInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') addThesis();
+            });
+
+            adminToggle.addEventListener('click', function() {
+                adminPanel.classList.toggle('open');
+            });
+
+            applyPhaseBtn.addEventListener('click', function() {
+                const newPhase = phaseSelect.value;
+                setPhase(newPhase);
+                adminPanel.classList.remove('open');
+            });
+
+            exportBtn.addEventListener('click', exportData);
+            importBtn.addEventListener('click', function() {
+                fileInput.click();
+            });
+            fileInput.addEventListener('change', function(e) {
+                if (this.files.length > 0) {
+                    importData(this.files[0]);
+                }
+                this.value = '';
+            });
+
+            // ---------- Initialisierung ----------
+            loadData();
+            // Sicherstellen, dass seenIds existiert
+            if (!data.seenIds) data.seenIds = [];
+            // Beim Start: Wenn Phase vote ist, Queue initialisieren
+            if (data.phase === 'vote') {
+                voteQueue = [];
+                currentIndex = 0;
+            }
+            renderAll();
+
+            // Tastatur-Shortcuts für Voten (optional)
+            document.addEventListener('keydown', function(e) {
+                if (data.phase !== 'vote') return;
+                if (e.key === 'ArrowLeft') {
+                    dislikeBtn.click();
+                } else if (e.key === 'ArrowRight') {
+                    likeBtn.click();
+                }
+            });
+
+        })();
+    </script>
+</body>
+</html>
