@@ -871,14 +871,48 @@
       }).join('');
     }
 
+    // ==================== NEUER EXPORT (Rasenschach-Format) ====================
     function exportTop12() {
-      const top12 = allTheses.slice(0, 12).map(t => ({ text: t.text, votes: t.votes }));
-      const json = JSON.stringify(top12, null, 2);
+      const top12 = allTheses.slice(0, 12);
+      const thesesTexts = top12.map(t => t.text);
+      while (thesesTexts.length < 12) thesesTexts.push('');
+
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}-${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+
+      const positions = Array.from({ length: 12 }, (_, i) => ({
+        id: i + 1,
+        side: null,
+        piece: null,
+        knightSwing: (i % 2 === 0) ? -1 : 1,
+        polarity: null
+      }));
+
+      const exportData = {
+        app: "rasenschach",
+        version: 3,
+        exportedAt: now.toISOString(),
+        data: {
+          theses: thesesTexts,
+          positions: positions,
+          names: { white: "", black: "" },
+          results: {
+            white: { rook: 0, bishop: 0, knight: 0, queen: 0, king: 0 },
+            black: { rook: 0, bishop: 0, knight: 0, queen: 0, king: 0 }
+          },
+          questionValue: null,
+          figureImages: {},
+          teamLogos: { white: null, black: null }
+        }
+      };
+
+      const json = JSON.stringify(exportData, null, 2);
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `top12-thesen-${new Date().toISOString().slice(0,10)}.json`;
+      a.download = `rasenschach-speicherstand-${dateStr}.json`;
       a.click();
       URL.revokeObjectURL(url);
     }
