@@ -194,7 +194,7 @@
     }
 
     /* ============================
-       VOTE-CARD (Tinder‑Style)
+       VOTE-CARD (Tinder‑Style) – mit Text‑Wrap & Scroll
        ============================ */
     .card-area {
       position: relative;
@@ -222,7 +222,20 @@
       cursor: default;
       user-select: none;
       line-height: 1.5;
+      /* NEU: Textumbruch & Scroll bei Überlänge */
+      overflow-y: auto;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      hyphens: auto;
     }
+    /* Damit der Textblock innerhalb der Karte bleibt */
+    .card .card-text {
+      display: block;
+      width: 100%;
+      max-height: 100%;
+      pointer-events: none;
+    }
+
     .card.swiped-left {
       transform: translateX(-120%) rotate(-12deg);
       opacity: 0;
@@ -231,7 +244,6 @@
       transform: translateX(120%) rotate(12deg);
       opacity: 0;
     }
-    .card .card-text { pointer-events: none; }
 
     .card-actions {
       display: flex;
